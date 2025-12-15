@@ -39,7 +39,6 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
-  super_editor: ^0.3.0-dev.40
 
 dev_dependencies:
   flutter_test:

@@ -13,16 +13,7 @@ class _NotesAddPageState extends State<NotesAddPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Expanded(
-                child: const NoteEditor(),
-              )
-            ],
-          ),
-        ),
+        child: Column(children: [Expanded(child: const NoteEditor())]),
       ),
     );
   }

@@ -1,5 +1,4 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:marquer/components/note_super_editor/note_super_editor.dart';
 
 class NotesEditPage extends StatefulWidget {
   const NotesEditPage({super.key, required this.id});
@@ -18,9 +17,6 @@ class _NotesEditPageState extends State<NotesEditPage> {
         child: Column(
           mainAxisAlignment: .center,
           children: [
-            Expanded(
-              child: const NoteSuperEditor()
-            )
           ],
         ),
       ),
