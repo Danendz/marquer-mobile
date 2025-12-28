@@ -5,28 +5,69 @@ import 'package:marquer/screens/notes/notes.dart';
 import 'package:marquer/screens/notes/notes_edit.dart';
 import 'package:marquer/screens/notes/notes_add.dart';
 
-final router = GoRouter(
-  initialLocation: '/',
-  routes: [
-    ShellRoute(
-      builder: (context, state, child) {
-        return AppLayout(path: state.uri.toString(), child: child);
-      },
-      routes: [
-        GoRoute(path: "/", builder: (context, state) => const HomePage()),
-        GoRoute(path: "/notes", builder: (context, state) => const NotesPage()),
-        GoRoute(
-          path: "/notes/add",
-          builder: (context, state) => const NotesAddPage(),
-        ),
-        GoRoute(
-          path: "/notes/:id",
-          builder: (context, state) {
-            final id = state.pathParameters['id'];
-            return NotesEditPage(id: id!);
-          },
-        ),
-      ],
-    ),
-  ],
-);
+import '../screens/auth/login.dart';
+import '../screens/auth/register.dart';
+import '../screens/splash.dart';
+import '../stores/auth_store.dart';
+
+GoRouter createRouter(AuthStore auth) {
+  return GoRouter(
+    initialLocation: '/splash',
+    refreshListenable: auth,
+    redirect: (context, state) {
+      final loc = state.matchedLocation;
+
+      final isSplash = loc == '/splash';
+      final isLogin  = loc == '/login' || loc == '/register';
+
+      if (auth.status == AuthStatus.unknown) {
+        return isSplash ? null : '/splash';
+      }
+
+      if (auth.status == AuthStatus.unauthenticated) {
+        return isLogin ? null : '/login';
+      }
+
+      if (auth.status == AuthStatus.authenticated) {
+        if (isSplash || isLogin) return '/';
+      }
+
+      return null;
+    },
+    routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashPage(),
+      ),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => LoginPage(auth: auth),
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => RegisterPage(auth: auth),
+      ),
+      ShellRoute(
+        builder: (context, state, child) {
+          return AppLayout(path: state.uri.toString(), child: child);
+        },
+        routes: [
+          GoRoute(path: "/", builder: (context, state) => const HomePage()),
+          GoRoute(path: "/notes", builder: (context, state) => const NotesPage()),
+          GoRoute(
+            path: "/notes/add",
+            builder: (context, state) => const NotesAddPage(),
+          ),
+          GoRoute(
+            path: "/notes/:id",
+            builder: (context, state) {
+              final id = state.pathParameters['id'];
+              return NotesEditPage(id: id!);
+            },
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
