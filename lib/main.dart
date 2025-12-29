@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
 import 'package:marquer/api/api.dart';
+import 'package:marquer/components/managers/global_manager.dart';
 import 'package:marquer/config/theme.dart';
 import 'package:marquer/router/router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -53,6 +54,12 @@ class MyApp extends StatelessWidget {
       supportedLocales: const [Locale('en'), Locale('fr'), Locale('zh', 'CN')],
       routerConfig: router,
       scaffoldMessengerKey: ToastService.messengerKey,
+      builder: (context, child) {
+        return GlobalManager(
+          rootNavKey: rootNavKey,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }
