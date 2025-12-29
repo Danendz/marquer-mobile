@@ -49,6 +49,13 @@ jobs:
           echo "PUBSPEC_VERSION_NAME=$NAME" >> $GITHUB_ENV
           echo "PUBSPEC_BUILD_NUMBER=$NUM" >> $GITHUB_ENV
 
+      - name: Create .env for build
+        run: |
+          cat > .env << 'EOF'
+          MARQUER_API_URL=${{ vars.MARQUER_API_URL }}
+          AUTH_API_URL=${{ vars.AUTH_API_URL }}
+          EOF
+
       - name: Pub get
         run: flutter pub get
 
