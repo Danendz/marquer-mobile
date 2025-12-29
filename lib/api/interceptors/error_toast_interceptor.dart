@@ -1,17 +1,25 @@
 ﻿import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:marquer/stores/auth_store.dart';
 
 import '../../services/toast_service.dart';
 
 class ErrorToastInterceptor extends Interceptor {
+  ErrorToastInterceptor(this._auth);
+
+  final AuthStore _auth;
+
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) {
-    final msg = _toMessage(err);
+  Future<void> onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
+    final msg = await _toMessage(err);
     ToastService.showError(msg);
     handler.next(err);
   }
 
-  String _toMessage(DioException e) {
+  Future<String> _toMessage(DioException e) async {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.sendTimeout) {
@@ -23,6 +31,12 @@ class ErrorToastInterceptor extends Interceptor {
     }
     if (e.type == DioExceptionType.cancel) {
       return 'Request cancelled.';
+    }
+
+    if (e.response?.statusCode == 401) {
+      await _auth.logout();
+
+      return 'Authorization required.';
     }
 
     final status = e.response?.statusCode;

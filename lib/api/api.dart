@@ -9,8 +9,9 @@ import 'models/api_response.dart';
 
 class ApiService {
   final Dio _dio;
+  final AuthStore auth;
 
-  ApiService({String? baseUrl})
+  ApiService({String? baseUrl, required this.auth})
     : _dio =
           Dio(
               BaseOptions(
@@ -24,8 +25,8 @@ class ApiService {
               ),
             )
             ..interceptors.addAll([
-              ErrorToastInterceptor(),
-              AuthInterceptor(AuthStore()),
+              ErrorToastInterceptor(auth),
+              AuthInterceptor(auth),
               LogInterceptor(
                 requestHeader: true,
                 requestBody: true,
@@ -66,13 +67,9 @@ class ApiService {
     return ApiResponse<T>.fromJson(map, fromJsonT);
   }
 
-  Future<ApiResponse<T>> delete<T>(
-    String path, {
-    Object? body,
-    required T Function(Object? json) fromJsonT,
-  }) async {
+  Future<ApiResponse<Null>> delete(String path, {Object? body}) async {
     final res = await _dio.delete(path, data: body);
     final map = res.data as Map<String, dynamic>;
-    return ApiResponse<T>.fromJson(map, fromJsonT);
+    return ApiResponse<Null>.fromJson(map, (json) => null);
   }
 }
