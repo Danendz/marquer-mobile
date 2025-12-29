@@ -128,7 +128,6 @@ class _NoteEditorState extends State<NoteEditor> {
       setState(() {
         _controller.document = Document.fromJson(json);
         _controller.updateSelection(const TextSelection.collapsed(offset: 0), ChangeSource.local);
-        _loadingNote = false;
       });
     } finally {
       setState(() => _loadingNote = false);
