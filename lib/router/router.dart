@@ -1,4 +1,5 @@
-﻿import 'package:go_router/go_router.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:marquer/layouts/app_layout.dart';
 import 'package:marquer/screens/home.dart';
 import 'package:marquer/screens/notes/notes.dart';
@@ -10,8 +11,11 @@ import '../screens/auth/register.dart';
 import '../screens/splash.dart';
 import '../stores/auth_store.dart';
 
+final rootNavKey = GlobalKey<NavigatorState>();
+
 GoRouter createRouter(AuthStore auth) {
   return GoRouter(
+    navigatorKey: rootNavKey,
     initialLocation: '/splash',
     refreshListenable: auth,
     redirect: (context, state) {
