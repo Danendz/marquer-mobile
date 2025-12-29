@@ -15,6 +15,7 @@ permissions:
 jobs:
   build-upload-notify:
     runs-on: ubuntu-latest
+    environment: prod
 
     steps:
       - uses: actions/checkout@v4
