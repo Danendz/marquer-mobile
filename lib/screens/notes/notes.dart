@@ -2,6 +2,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/notes/list_note.dart';
 import 'package:marquer/api/services/notes_service.dart';
+import 'package:marquer/components/notes/NotesTiles.dart';
 
 class NotesPage extends StatefulWidget {
   const NotesPage({super.key});
@@ -25,22 +26,19 @@ class _NotesPageState extends State<NotesPage> {
     super.dispose();
   }
 
+  void onDeleted(int id) {
+    setState(() {
+      notes.removeWhere((note) => note.id == id);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
         child: _loading
             ? const CircularProgressIndicator()
-            : ListView.builder(
-                itemCount: notes.length,
-                itemBuilder: (context, i) {
-                  final note = notes[i];
-                  return ListTile(
-                    title: Text(note.title),
-                    onTap: () => context.go('/notes/${note.id}'),
-                  );
-                },
-              ),
+            : NotesTiles(notes: notes, onDeleted: onDeleted),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.go("/notes/add"),
