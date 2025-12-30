@@ -74,6 +74,9 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
+      - name: Gradle cache (cache-only)
+        uses: burrunan/gradle-cache-action@v3
+
       - name: Build release APK
         run: flutter build apk --release
 
