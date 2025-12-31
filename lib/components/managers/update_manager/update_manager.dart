@@ -34,10 +34,9 @@ class _UpdateManagerState extends State<UpdateManager> {
     _isChecking = false;
 
     if (downloadUrl == null) return;
-    if (!mounted) return;
 
     final context = widget.rootNavKey.currentContext;
-    if (context == null) return;
+    if (context == null || !context.mounted) return;
 
     final shouldUpdate = await showDialog<bool>(
       context: context,
@@ -59,6 +58,7 @@ class _UpdateManagerState extends State<UpdateManager> {
     );
 
     if (shouldUpdate == true) {
+      if (!context.mounted) return;
       _startDownloadFlow(context, downloadUrl);
     }
   }

@@ -1,13 +1,14 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/auth/login_request.dart';
 import 'package:marquer/api/services/auth_service.dart';
 import 'package:marquer/stores/auth_store.dart';
 
 class LoginPage extends StatefulWidget {
-  final AuthStore auth;
+  final AuthStore auth = GetIt.instance<AuthStore>();
 
-  const LoginPage({super.key, required this.auth});
+  LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();

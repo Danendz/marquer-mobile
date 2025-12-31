@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/layouts/app_layout.dart';
 import 'package:marquer/screens/home.dart';
@@ -12,13 +13,16 @@ import '../screens/splash.dart';
 import '../stores/auth_store.dart';
 
 final rootNavKey = GlobalKey<NavigatorState>();
+final getIt = GetIt.instance;
 
-GoRouter createRouter(AuthStore auth) {
+GoRouter createRouter() {
+  final auth = getIt<AuthStore>();
+
   return GoRouter(
     navigatorKey: rootNavKey,
     initialLocation: '/splash',
     refreshListenable: auth,
-    redirect: (context, state) {
+    redirect: (context, state) async {
       final loc = state.matchedLocation;
 
       final isSplash = loc == '/splash';
@@ -45,11 +49,11 @@ GoRouter createRouter(AuthStore auth) {
       ),
       GoRoute(
         path: '/login',
-        builder: (context, state) => LoginPage(auth: auth),
+        builder: (context, state) => LoginPage(),
       ),
       GoRoute(
         path: '/register',
-        builder: (context, state) => RegisterPage(auth: auth),
+        builder: (context, state) => RegisterPage(),
       ),
       ShellRoute(
         builder: (context, state, child) {
