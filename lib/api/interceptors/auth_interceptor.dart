@@ -78,8 +78,12 @@ class AuthInterceptor extends Interceptor {
       for (final item in queued) {
         final ro = item.requestOptions;
 
-        final retryResponse = await _retryWithNewToken(ro, newToken);
-        item.completer.complete(retryResponse);
+        try {
+          final retryResponse = await _retryWithNewToken(ro, newToken);
+          item.completer.complete(retryResponse);
+        } catch (e) {
+          item.completer.completeError(e);
+        }
       }
 
       _isRefreshing = false;
