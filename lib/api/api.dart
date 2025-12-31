@@ -25,8 +25,8 @@ class ApiService {
               ),
             )
             ..interceptors.addAll([
-              ErrorToastInterceptor(auth),
               AuthInterceptor(auth),
+              ErrorToastInterceptor(auth),
               LogInterceptor(
                 requestHeader: true,
                 requestBody: true,

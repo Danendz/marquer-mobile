@@ -22,6 +22,7 @@ class _NoteTileState extends State<NoteTile> {
 
   Future<void> onLongPress(BuildContext context) async {
     await HapticFeedback.mediumImpact();
+    if (!context.mounted) return;
 
     final result = await showMenu(
       context: context,
@@ -51,6 +52,8 @@ class _NoteTileState extends State<NoteTile> {
         ),
       ],
     );
+
+    if (!context.mounted) return;
 
     if (result == 'edit') {
       context.go('/notes/${note.id}');

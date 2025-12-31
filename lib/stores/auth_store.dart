@@ -1,21 +1,40 @@
 ﻿import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:get_it/get_it.dart';
+import 'package:marquer/stores/user_store.dart';
 
 enum AuthStatus { unknown, unauthenticated, authenticated }
 
 class AuthStore extends ChangeNotifier {
   AuthStatus _status = AuthStatus.unknown;
+
   AuthStatus get status => _status;
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   static const _tokenKey = 'access_token';
 
   String? _token;
+
   String? get token => _token;
+
+  late final UserStore userStore = GetIt.instance<UserStore>();
 
   Future<void> loadFromStorage() async {
     _token = await _storage.read(key: _tokenKey);
-    _status = (_token == null) ? AuthStatus.unauthenticated : AuthStatus.authenticated;
+    if (_token == null) {
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return;
+    }
+
+    try {
+      await userStore.fetchMe();
+      _status = AuthStatus.authenticated;
+    } catch (e) {
+      await logout();
+    }
+
+    _status = AuthStatus.authenticated;
     notifyListeners();
   }
 
@@ -30,6 +49,7 @@ class AuthStore extends ChangeNotifier {
     _token = null;
     _status = AuthStatus.unauthenticated;
     await _storage.delete(key: _tokenKey);
+    userStore.clear();
     notifyListeners();
   }
 }
