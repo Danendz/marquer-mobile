@@ -9,15 +9,16 @@ class UserStore extends ChangeNotifier {
   bool _loadingMe = false;
 
   Future<void> fetchMe() async {
-    if (_loadingMe || user != null) return;
+    if (_loadingMe) return;
 
     _loadingMe = true;
+    notifyListeners();
     try {
       _user = await authService.me();
     } finally {
       _loadingMe = false;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   void clear() {

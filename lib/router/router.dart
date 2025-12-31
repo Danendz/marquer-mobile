@@ -22,7 +22,7 @@ GoRouter createRouter() {
     navigatorKey: rootNavKey,
     initialLocation: '/splash',
     refreshListenable: auth,
-    redirect: (context, state) async {
+    redirect: (context, state) {
       final loc = state.matchedLocation;
 
       final isSplash = loc == '/splash';

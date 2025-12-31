@@ -78,8 +78,6 @@ class AuthInterceptor extends Interceptor {
       for (final item in queued) {
         final ro = item.requestOptions;
 
-        ro.headers['Authorization'] = 'Bearer $newToken';
-
         final retryResponse = await _retryWithNewToken(ro, newToken);
         item.completer.complete(retryResponse);
       }
