@@ -1,5 +1,5 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:marquer/components/managers/update_manager.dart';
+import 'package:marquer/components/managers/update_manager/update_manager.dart';
 
 class GlobalManager extends StatelessWidget {
   const GlobalManager({
