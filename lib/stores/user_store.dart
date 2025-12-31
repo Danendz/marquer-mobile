@@ -22,5 +22,6 @@ class UserStore extends ChangeNotifier {
 
   void clear() {
     _user = null;
+    notifyListeners();
   }
 }

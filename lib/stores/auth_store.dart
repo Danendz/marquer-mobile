@@ -7,12 +7,14 @@ enum AuthStatus { unknown, unauthenticated, authenticated }
 
 class AuthStore extends ChangeNotifier {
   AuthStatus _status = AuthStatus.unknown;
+
   AuthStatus get status => _status;
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   static const _tokenKey = 'access_token';
 
   String? _token;
+
   String? get token => _token;
 
   late final UserStore userStore = GetIt.instance<UserStore>();
@@ -25,7 +27,13 @@ class AuthStore extends ChangeNotifier {
       return;
     }
 
-    await userStore.fetchMe();
+    try {
+      await userStore.fetchMe();
+      _status = AuthStatus.authenticated;
+    } catch (e) {
+      await logout();
+    }
+
     _status = AuthStatus.authenticated;
     notifyListeners();
   }

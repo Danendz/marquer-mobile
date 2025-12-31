@@ -6,9 +6,7 @@ import 'package:marquer/api/services/auth_service.dart';
 import 'package:marquer/stores/auth_store.dart';
 
 class RegisterPage extends StatefulWidget {
-  final AuthStore auth = GetIt.instance<AuthStore>();
-
-  RegisterPage({super.key});
+  const RegisterPage({super.key});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -16,6 +14,7 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
+  final AuthStore _auth = GetIt.instance<AuthStore>();
 
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -141,7 +140,7 @@ class _RegisterPageState extends State<RegisterPage> {
       final data = await authService.register(
         RegisterRequest(name: name, email: email, password: password),
       );
-      await widget.auth.setToken(data.token);
+      await _auth.setToken(data.token);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

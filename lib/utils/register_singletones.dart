@@ -27,7 +27,7 @@ void registerApi() {
   );
 }
 
-GetIt registerSingletones() {
+GetIt registerSingletons() {
   registerStores();
   registerApi();
 

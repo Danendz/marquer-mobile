@@ -14,7 +14,7 @@ import 'package:provider/provider.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
-  final getIt = registerSingletones();
+  final getIt = registerSingletons();
 
   await getIt<AuthStore>().loadFromStorage();
 

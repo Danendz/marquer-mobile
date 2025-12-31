@@ -95,7 +95,7 @@ class AuthInterceptor extends Interceptor {
         item.completer.completeError(e);
       }
       _isRefreshing = false;
-      auth.logout();
+      await auth.logout();
 
       return handler.next(err);
     }
