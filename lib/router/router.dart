@@ -10,6 +10,7 @@ import 'package:marquer/screens/notes/notes_add.dart';
 import '../screens/auth/login.dart';
 import '../screens/auth/register.dart';
 import '../screens/splash.dart';
+import '../screens/tasks/task_folders.dart';
 import '../stores/auth_store.dart';
 
 final rootNavKey = GlobalKey<NavigatorState>();
@@ -26,7 +27,7 @@ GoRouter createRouter() {
       final loc = state.matchedLocation;
 
       final isSplash = loc == '/splash';
-      final isLogin  = loc == '/login' || loc == '/register';
+      final isLogin = loc == '/login' || loc == '/register';
 
       if (auth.status == AuthStatus.unknown) {
         return isSplash ? null : '/splash';
@@ -37,31 +38,25 @@ GoRouter createRouter() {
       }
 
       if (auth.status == AuthStatus.authenticated) {
-        if (isSplash || isLogin) return '/';
+        if (isSplash || isLogin) return '/task-folders';
       }
 
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/splash',
-        builder: (context, state) => const SplashPage(),
-      ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => LoginPage(),
-      ),
-      GoRoute(
-        path: '/register',
-        builder: (context, state) => RegisterPage(),
-      ),
+      GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
+      GoRoute(path: '/login', builder: (context, state) => LoginPage()),
+      GoRoute(path: '/register', builder: (context, state) => RegisterPage()),
       ShellRoute(
         builder: (context, state, child) {
           return AppLayout(path: state.uri.toString(), child: child);
         },
         routes: [
           GoRoute(path: "/", builder: (context, state) => const HomePage()),
-          GoRoute(path: "/notes", builder: (context, state) => const NotesPage()),
+          GoRoute(
+            path: "/notes",
+            builder: (context, state) => const NotesPage(),
+          ),
           GoRoute(
             path: "/notes/add",
             builder: (context, state) => const NotesAddPage(),
@@ -73,9 +68,12 @@ GoRouter createRouter() {
               return NotesEditPage(id: id!);
             },
           ),
+          GoRoute(
+            path: "/task-folders",
+            builder: (context, state) => const TaskFoldersPage(),
+          ),
         ],
       ),
     ],
   );
 }
-

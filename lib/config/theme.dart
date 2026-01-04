@@ -34,7 +34,7 @@ final themeDark = ColorScheme(
   error: const Color(0xFFCF6679),
   onError: const Color(0xFF1B0B10),
 
-  outline: const Color(0xFF3C4446),
+  outline: const Color(0xFF363739),
   surfaceTint: const Color(0xFF4C66A1),
 );
 

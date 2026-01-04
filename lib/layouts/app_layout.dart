@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 class AppLayout extends StatelessWidget {
   final Widget child;
   final String path;
-  static List<String> paths = ["/notes"];
+  static List<String> paths = ["/notes", "/task-folders"];
 
   const AppLayout({super.key, required this.child, required this.path});
 
@@ -17,7 +17,6 @@ class AppLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Center(child: const Text("Marquer"))),
       body: SafeArea(child: child),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -38,11 +37,17 @@ class AppLayout extends StatelessWidget {
               case 1:
                 context.go('/notes');
                 break;
+              case 2:
+                context.go('/task-folders');
+                break;
+              default:
+                throw Exception('Invalid index');
             }
           },
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
             BottomNavigationBarItem(icon: Icon(Icons.note), label: 'Notes'),
+            BottomNavigationBarItem(icon: Icon(Icons.task), label: 'Tasks'),
           ],
         ),
       ),
