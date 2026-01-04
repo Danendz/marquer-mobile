@@ -1,65 +1,47 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:marquer/api/models/tasks/folders/task_folder.dart';
-import 'package:marquer/api/services/tasks_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/components/tasks/task_folder_item.dart';
+import 'package:marquer/providers/tasks/task_folders_provider.dart';
 
-class TaskFoldersPage extends StatefulWidget {
+class TaskFoldersPage extends ConsumerWidget {
   const TaskFoldersPage({super.key});
 
   @override
-  State<TaskFoldersPage> createState() => _TaskFoldersPageState();
-}
-
-class _TaskFoldersPageState extends State<TaskFoldersPage> {
-  List<TaskFolder> _taskFolders = [];
-  bool _isLoading = true;
-  final TasksService _tasksService = TasksService();
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchTaskFolders();
-  }
-
-  void _fetchTaskFolders() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final data = await _tasksService.getFolders();
-
-      setState(() {
-        _taskFolders = data;
-      });
-    } catch (e) {
-      debugPrint(e.toString());
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    return Scaffold(
-      body: Padding(
-        padding: const EdgeInsetsGeometry.all(10),
-        child: ListView(
-          children: _taskFolders
-              .map(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final foldersAsync = ref.watch(taskFoldersProvider);
+    return foldersAsync.when(
+      data: (folders) => Scaffold(
+        body: Padding(
+          padding: const EdgeInsetsGeometry.all(10),
+          child: ListView(
+            children: [
+              Padding(
+                padding: const EdgeInsetsGeometry.only(
+                  left: 10,
+                  right: 10,
+                  bottom: 5,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text('Folders', style: TextStyle(fontSize: 18)),
+                    TextButton(child: Text('Manage'), onPressed: () {},)
+                  ],
+                ),
+              ),
+              ...folders.map(
                 (folder) => TaskFolderItem(
                   key: ValueKey(folder.id),
                   taskFolder: folder,
                 ),
-              )
-              .toList(),
+              ),
+            ],
+          ),
         ),
       ),
+      error: (e, st) => Text('Error: $e'),
+      loading: () => const Center(child: CircularProgressIndicator()),
     );
   }
 }

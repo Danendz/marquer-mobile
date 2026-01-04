@@ -1,5 +1,6 @@
 ﻿import 'package:get_it/get_it.dart';
 import 'package:marquer/api/api.dart';
+import 'package:marquer/api/models/tasks/categories/task_category.dart';
 import 'package:marquer/api/models/tasks/categories/upsert_task_category_request.dart';
 import 'package:marquer/api/models/tasks/folders/task_folder.dart';
 import 'package:marquer/api/models/tasks/folders/upsert_task_folder_request.dart';
@@ -52,21 +53,21 @@ final class TasksService {
   }
 
   // Categories api
-  Future<TaskFolder> createCategory(UpsertTaskCategoryRequest request) async {
-    final resp = await api.post<TaskFolder>(
+  Future<TaskCategory> createCategory(UpsertTaskCategoryRequest request) async {
+    final resp = await api.post<TaskCategory>(
       '/task-categories',
       body: request,
-      fromJsonT: (json) => ModelParser.objectFromJson(json, TaskFolder.fromJson),
+      fromJsonT: (json) => ModelParser.objectFromJson(json, TaskCategory.fromJson),
     );
 
     return resp.data;
   }
 
-  Future<TaskFolder> updateCategory(String id, UpsertTaskCategoryRequest request) async {
-    final resp = await api.put<TaskFolder>(
+  Future<TaskCategory> updateCategory(String id, UpsertTaskCategoryRequest request) async {
+    final resp = await api.put<TaskCategory>(
       '/task-categories/$id',
       body: request,
-      fromJsonT: (json) => ModelParser.objectFromJson(json, TaskFolder.fromJson),
+      fromJsonT: (json) => ModelParser.objectFromJson(json, TaskCategory.fromJson),
     );
 
     return resp.data;
