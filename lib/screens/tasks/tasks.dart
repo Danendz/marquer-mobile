@@ -1,0 +1,314 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:marquer/api/models/tasks/tasks/task_status.dart';
+import 'package:marquer/components/tasks/task_filter_dropdown.dart';
+import 'package:marquer/components/tasks/task_item_card.dart';
+import 'package:marquer/providers/tasks/task_filter.dart';
+import 'package:marquer/providers/tasks/task_filter_provider.dart';
+import 'package:marquer/providers/tasks/task_folders_provider.dart';
+import 'package:marquer/providers/tasks/tasks_provider.dart';
+import 'package:marquer/utils/action_sheet.dart';
+import 'package:marquer/utils/colors.dart';
+
+class TasksPage extends ConsumerStatefulWidget {
+  const TasksPage({super.key});
+
+  @override
+  ConsumerState<TasksPage> createState() => _TasksPageState();
+}
+
+class _TasksPageState extends ConsumerState<TasksPage> {
+  bool _isAdding = false;
+  bool _completedExpanded = false;
+  final _addController = TextEditingController();
+  final _addFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _addFocusNode.addListener(_onAddFocusChange);
+  }
+
+  void _onAddFocusChange() {
+    if (!_addFocusNode.hasFocus && _isAdding) {
+      if (_addController.text.trim().isNotEmpty) {
+        _submitTask();
+      } else {
+        _stopAdding();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _addFocusNode.removeListener(_onAddFocusChange);
+    _addController.dispose();
+    _addFocusNode.dispose();
+    super.dispose();
+  }
+
+  String _filterTitle(TaskFilter filter) {
+    return switch (filter) {
+      AllTasksFilter() => 'All To-Do',
+      CategoryFilter(:final categoryName) => categoryName,
+      RecentlyDeletedFilter() => 'Recently Deleted',
+    };
+  }
+
+  void _startAdding() {
+    setState(() => _isAdding = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _addFocusNode.requestFocus();
+    });
+  }
+
+  void _stopAdding() {
+    setState(() {
+      _isAdding = false;
+      _addController.clear();
+    });
+  }
+
+  Future<void> _submitTask() async {
+    final name = _addController.text.trim();
+    if (name.isEmpty) return;
+
+    final filter = ref.read(taskFilterProvider);
+    int? categoryId;
+
+    if (filter is CategoryFilter) {
+      categoryId = filter.categoryId;
+    }
+
+    ref.read(tasksProvider.notifier).addTask(name, categoryId);
+    _addController.clear();
+    _addFocusNode.requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = getColors(context);
+    final filter = ref.watch(taskFilterProvider);
+    final tasksAsync = ref.watch(tasksProvider);
+    ref.watch(taskFoldersProvider); // preload for category picker
+    final isDeletedView = filter is RecentlyDeletedFilter;
+
+    return Scaffold(
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: () => showTaskFilterDropdown(context, ref),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _filterTitle(filter),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_drop_down),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: () async {
+                    final result = await showAppActionSheet(context, const [
+                      AppAction(value: 'manage', icon: Icons.folder_outlined, label: 'Manage Folders'),
+                    ]);
+                    if (result == 'manage' && context.mounted) {
+                      context.go('/tasks/manage-folders');
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: tasksAsync.when(
+              data: (tasks) {
+                final activeTasks = tasks
+                    .where((t) => t.status != TaskStatus.done && t.status != TaskStatus.cancelled)
+                    .toList();
+                final completedTasks = tasks
+                    .where((t) => t.status == TaskStatus.done)
+                    .toList();
+
+                final showCompleted = !isDeletedView && completedTasks.isNotEmpty;
+
+                if (!_isAdding && activeTasks.isEmpty && completedTasks.isEmpty && !isDeletedView) {
+                  return RefreshIndicator(
+                    onRefresh: () => ref.refresh(tasksProvider.future),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        SizedBox(
+                          height: 400,
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle_outline, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No tasks yet',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: colors.onSurface.withValues(alpha: 0.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (isDeletedView && tasks.isEmpty) {
+                  return RefreshIndicator(
+                    onRefresh: () => ref.refresh(tasksProvider.future),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        SizedBox(
+                          height: 400,
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.delete_outline, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No deleted tasks',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: colors.onSurface.withValues(alpha: 0.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return GestureDetector(
+                  onTap: () {
+                    if (_isAdding) _addFocusNode.unfocus();
+                  },
+                  behavior: HitTestBehavior.translucent,
+                  child: RefreshIndicator(
+                    onRefresh: () => ref.refresh(tasksProvider.future),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                      if (_isAdding)
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: colors.surfaceContainer,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: colors.primary, width: 2),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextField(
+                                  controller: _addController,
+                                  focusNode: _addFocusNode,
+                                  decoration: const InputDecoration(
+                                    hintText: 'New task...',
+                                    border: InputBorder.none,
+                                  ),
+                                  onSubmitted: (_) => _submitTask(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (isDeletedView)
+                        ...tasks.map((task) => TaskItemCard(
+                          key: ValueKey(task.id),
+                          task: task,
+                        )),
+                      if (!isDeletedView) ...[
+                        ...activeTasks.map((task) => TaskItemCard(
+                          key: ValueKey(task.id),
+                          task: task,
+                        )),
+                        if (showCompleted) ...[
+                          GestureDetector(
+                            onTap: () => setState(() => _completedExpanded = !_completedExpanded),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _completedExpanded
+                                        ? Icons.expand_less
+                                        : Icons.expand_more,
+                                    size: 20,
+                                    color: colors.onSurface.withValues(alpha: 0.6),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Completed (${completedTasks.length})',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: colors.onSurface.withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (_completedExpanded)
+                            ...completedTasks.map((task) => TaskItemCard(
+                              key: ValueKey(task.id),
+                              task: task,
+                            )),
+                        ],
+                      ],
+                    ],
+                    ),
+                  ),
+                );
+              },
+              error: (e, _) => Center(child: Text('Error: $e')),
+              loading: () => const Center(child: CircularProgressIndicator()),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: isDeletedView
+          ? null
+          : FloatingActionButton(
+              onPressed: _startAdding,
+              child: const Icon(Icons.add),
+            ),
+    );
+  }
+}

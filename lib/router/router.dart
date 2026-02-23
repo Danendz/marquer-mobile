@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/layouts/app_layout.dart';
@@ -10,6 +10,7 @@ import 'package:marquer/screens/notes/notes_add.dart';
 import '../screens/auth/login.dart';
 import '../screens/auth/register.dart';
 import '../screens/splash.dart';
+import '../screens/tasks/tasks.dart';
 import '../screens/tasks/task_folders.dart';
 import '../stores/auth_store.dart';
 
@@ -38,7 +39,7 @@ GoRouter createRouter() {
       }
 
       if (auth.status == AuthStatus.authenticated) {
-        if (isSplash || isLogin) return '/task-folders';
+        if (isSplash || isLogin) return '/tasks';
       }
 
       return null;
@@ -69,7 +70,11 @@ GoRouter createRouter() {
             },
           ),
           GoRoute(
-            path: "/task-folders",
+            path: "/tasks",
+            builder: (context, state) => const TasksPage(),
+          ),
+          GoRoute(
+            path: "/tasks/manage-folders",
             builder: (context, state) => const TaskFoldersPage(),
           ),
         ],

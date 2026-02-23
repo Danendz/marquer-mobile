@@ -1,14 +1,14 @@
-﻿class CreateTaskRequest {
+class CreateTaskRequest {
   final String name;
-  final int taskCategoryId;
+  final int? taskCategoryId;
 
   CreateTaskRequest({
     required this.name,
-    required this.taskCategoryId,
+    this.taskCategoryId,
   });
 
   Map<String, dynamic> toJson() => {
     'name': name,
-    'task_category_id': taskCategoryId,
+    if (taskCategoryId != null) 'task_category_id': taskCategoryId,
   };
 }

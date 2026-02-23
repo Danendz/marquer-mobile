@@ -1,11 +1,14 @@
-﻿class GetTasksRequest {
-  final int taskCategoryId;
+class GetTasksRequest {
+  final int? taskCategoryId;
+  final String? status;
 
   GetTasksRequest({
-    required this.taskCategoryId,
+    this.taskCategoryId,
+    this.status,
   });
 
   Map<String, dynamic> toJson() => {
-    'task_category_id': taskCategoryId,
+    if (taskCategoryId != null) 'task_category_id': taskCategoryId,
+    if (status != null) 'status': status,
   };
 }

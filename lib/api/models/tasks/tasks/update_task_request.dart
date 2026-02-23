@@ -1,19 +1,19 @@
-﻿import 'package:marquer/api/models/tasks/tasks/task_status.dart';
+import 'package:marquer/api/models/tasks/tasks/task_status.dart';
 
 class UpdateTaskRequest {
-  final String name;
-  final int taskCategoryId;
-  final TaskStatus status;
+  final String? name;
+  final int? taskCategoryId;
+  final TaskStatus? status;
 
   UpdateTaskRequest({
-    required this.name,
-    required this.taskCategoryId,
-    required this.status,
+    this.name,
+    this.taskCategoryId,
+    this.status,
   });
 
   Map<String, dynamic> toJson() => {
-    'name': name,
-    'task_category_id': taskCategoryId,
-    'status': status.name,
+    if (name != null) 'name': name,
+    if (taskCategoryId != null) 'task_category_id': taskCategoryId,
+    if (status != null) 'status': status!.name,
   };
 }

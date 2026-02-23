@@ -1,14 +1,16 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/tasks/categories/task_category.dart';
 import 'package:marquer/providers/tasks/task_folders_provider.dart';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:marquer/utils/action_sheet.dart';
 import 'package:marquer/utils/colors.dart';
 
 class TaskCategoryItem extends ConsumerStatefulWidget {
   final TaskCategory taskCategory;
   final int folderId;
-  final bool isEditable;
+  final bool isEditable; // true = new unsaved category
 
   const TaskCategoryItem({
     super.key,
@@ -23,238 +25,204 @@ class TaskCategoryItem extends ConsumerStatefulWidget {
 
 class _TaskCategoryItemState extends ConsumerState<TaskCategoryItem> {
   TaskCategory get taskCategory => widget.taskCategory;
-  late final TextEditingController _nameCtrl;
-
   int get folderId => widget.folderId;
 
-  bool get isEditable => widget.isEditable;
-  bool _colorUpdating = false;
-  bool _saving = false;
-  bool _deleting = false;
+  late final TextEditingController _nameCtrl;
+  late final FocusNode _focusNode;
+  bool _isRenaming = false;
+  bool _isBusy = false;
+
+  bool get _isEditing => widget.isEditable || _isRenaming;
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: taskCategory.name);
+    _focusNode = FocusNode();
+    _focusNode.addListener(_onFocusChange);
+    if (widget.isEditable) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _focusNode.requestFocus());
+    }
   }
 
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
     _nameCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _openPicker(WidgetRef ref) async {
-    Color temp = colorFromHex(taskCategory.color) ?? const Color(0xffffffff);
+  void _onFocusChange() {
+    if (!_focusNode.hasFocus && _isEditing && !_isBusy) {
+      final name = _nameCtrl.text.trim();
+      if (name.isNotEmpty) {
+        _save();
+      } else if (widget.isEditable) {
+        _discard();
+      } else {
+        setState(() => _isRenaming = false);
+        _nameCtrl.text = taskCategory.name;
+      }
+    }
+  }
 
+  Future<void> _save() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty || _isBusy) return;
+    setState(() => _isBusy = true);
+    try {
+      final notifier = ref.read(taskFoldersProvider.notifier);
+      if (taskCategory.id == null) {
+        await notifier.saveNewCategory(folderId, taskCategory.copyWith(name: name));
+      } else {
+        await notifier.updateCategory(folderId, taskCategory.copyWith(name: name));
+        if (mounted) setState(() => _isRenaming = false);
+      }
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
+    }
+  }
+
+  Future<void> _discard() async {
+    await ref.read(taskFoldersProvider.notifier).deleteCategory(folderId, taskCategory);
+  }
+
+  Future<void> _openColorPicker() async {
+    Color temp = colorFromHex(taskCategory.color) ?? const Color(0xffffffff);
     final picked = await showDialog<Color>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Pick a color'),
         content: SingleChildScrollView(
           child: ColorPicker(
             pickerColor: temp,
             onColorChanged: (c) => temp = c,
-            enableAlpha: true,
+            enableAlpha: false,
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, temp),
-            child: const Text('OK'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, temp), child: const Text('OK')),
         ],
       ),
     );
-
     if (mounted && picked != null) {
-      _updateColor(ref, taskCategory.copyWith(color: colorToHex(picked), name: _nameCtrl.text));
-    }
-  }
-
-  Future<void> _updateColor(WidgetRef ref, TaskCategory category) async {
-    setState(() {
-      _colorUpdating = true;
-    });
-
-    try {
-      await ref
-          .read(taskFoldersProvider.notifier)
-          .updateCategory(folderId, category);
-    } finally {
-      setState(() {
-        _colorUpdating = false;
-      });
-    }
-  }
-
-  Future<void> saveCategory(WidgetRef ref) async {
-    setState(() {
-      _saving = true;
-    });
-    try {
-      final taskFoldersStore = ref.read(taskFoldersProvider.notifier);
-      final updatedCategory = taskCategory.copyWith(name: _nameCtrl.text);
-
-      if (taskCategory.id == null) {
-        await taskFoldersStore.saveNewCategory(folderId, updatedCategory);
-      } else {
-        await taskFoldersStore.updateCategory(folderId, updatedCategory);
+      setState(() => _isBusy = true);
+      try {
+        await ref.read(taskFoldersProvider.notifier).updateCategory(
+          folderId,
+          taskCategory.copyWith(color: colorToHex(picked), name: _nameCtrl.text.trim()),
+        );
+      } finally {
+        if (mounted) setState(() => _isBusy = false);
       }
-    } finally {
-      setState(() {
-        _saving = false;
-      });
     }
   }
 
-  Future<void> deleteCategory(WidgetRef ref) async {
-    setState(() {
-      _deleting = true;
-    });
-    try {
-      final taskFoldersStore = ref.read(taskFoldersProvider.notifier);
-      await taskFoldersStore.deleteCategory(folderId, taskCategory);
-    } finally {
+  Future<void> _onLongPress() async {
+    if (widget.isEditable) return;
+    await HapticFeedback.mediumImpact();
+    if (!mounted) return;
+    final result = await showAppActionSheet(context, const [
+      AppAction(value: 'rename', icon: Icons.edit_outlined, label: 'Rename'),
+      AppAction(value: 'delete', icon: Icons.delete_outline, label: 'Delete', isDestructive: true),
+    ]);
+    if (!mounted || result == null) return;
+    if (result == 'rename') {
       setState(() {
-        _deleting = false;
+        _isRenaming = true;
+        _nameCtrl.text = taskCategory.name;
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _focusNode.requestFocus());
+    } else if (result == 'delete') {
+      await ref.read(taskFoldersProvider.notifier).deleteCategory(folderId, taskCategory);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = getColors(context);
+    final catColor = colorFromHex(taskCategory.color) ?? colors.primary;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        InkWell(
-          onTap: () => _openPicker(ref),
-          child: _colorUpdating
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: const CircularProgressIndicator(strokeWidth: 3),
-                )
-              : Row(
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: colorFromHex(taskCategory.color),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(2),
-                          bottomLeft: Radius.circular(2),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      width: 10,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: colorFromHex(
-                          taskCategory.color,
-                        )?.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.only(
-                          topRight: Radius.circular(2),
-                          bottomRight: Radius.circular(2),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+    if (_isEditing) {
+      return Container(
+        margin: const EdgeInsets.only(top: 6, bottom: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(12),
         ),
-
-        const SizedBox(width: 15),
-
-        Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.only(
-                    topRight: Radius.circular(5),
-                    topLeft: Radius.circular(5),
-                  ),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: _openColorPicker,
+              child: _ColorDot(color: catColor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _nameCtrl,
+                focusNode: _focusNode,
+                readOnly: _isBusy,
+                decoration: const InputDecoration(
+                  hintText: 'Category name...',
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
                 ),
-                contentPadding: const EdgeInsets.only(left: 10, right: 10),
-                title: Row(
-                  children: [
-                    Expanded(
-                      child: isEditable
-                          ? TextField(
-                              controller: _nameCtrl,
-                              readOnly: _deleting || _saving,
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                            )
-                          : Text(taskCategory.name),
-                    ),
-
-                    const SizedBox(width: 20),
-
-                    if (isEditable) ...[
-                      IconButton(
-                        icon: _saving
-                            ? SizedBox(
-                                width: 15,
-                                height: 15,
-                                child: const CircularProgressIndicator(
-                                  strokeWidth: 3,
-                                ),
-                              )
-                            : const Icon(Icons.check, color: Colors.green),
-                        onPressed: _saving || _deleting
-                            ? null
-                            : () => saveCategory(ref),
-                        padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(),
-                        style: ButtonStyle(
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                      ),
-                      IconButton(
-                        icon: _deleting
-                            ? SizedBox(
-                                width: 15,
-                                height: 15,
-                                child: const CircularProgressIndicator(
-                                  strokeWidth: 3,
-                                ),
-                              )
-                            : Icon(Icons.delete, color: Colors.red),
-                        onPressed: _saving || _deleting ? null : () => deleteCategory(ref),
-                        padding: EdgeInsets.only(left: 10),
-                        constraints: BoxConstraints(),
-                        style: ButtonStyle(
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                      ),
-                    ] else
-                      Text(taskCategory.tasksCount.toString()),
-                  ],
-                ),
-                onTap: () {},
+                onSubmitted: (_) => _save(),
               ),
-              Divider(
-                height: 1,
-                thickness: 1,
-                indent: 10,
-                color: colors.onSecondary.withValues(alpha: 0.1),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      );
+    }
+
+    return GestureDetector(
+      onLongPress: _onLongPress,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: _openColorPicker,
+              child: _ColorDot(color: catColor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(taskCategory.name, style: const TextStyle(fontSize: 14)),
+            ),
+            Text(
+              taskCategory.tasksCount.toString(),
+              style: TextStyle(fontSize: 13, color: colors.onSurface.withValues(alpha: 0.4)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ColorDot extends StatelessWidget {
+  final Color color;
+
+  const _ColorDot({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: color.withValues(alpha: 0.6),
+          width: 2,
+        ),
+      ),
     );
   }
 }

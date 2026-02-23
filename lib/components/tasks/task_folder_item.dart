@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/tasks/categories/task_category.dart';
 import 'package:marquer/api/models/tasks/folders/task_folder.dart';
@@ -9,22 +9,21 @@ import 'package:uuid/uuid.dart';
 
 class TaskFolderItem extends ConsumerWidget {
   final TaskFolder taskFolder;
+  final VoidCallback? onLongPress;
 
-  const TaskFolderItem({super.key, required this.taskFolder});
+  const TaskFolderItem({super.key, required this.taskFolder, this.onLongPress});
 
   void _addNewCategory(WidgetRef ref) {
-    ref
-        .read(taskFoldersProvider.notifier)
-        .addCategory(
-          taskFolder.id,
-          TaskCategory(
-            id: null,
-            name: 'New category',
-            color: '#fff',
-            tasksCount: 0,
-            tempNewUUID: Uuid().v4()
-          ),
-        );
+    ref.read(taskFoldersProvider.notifier).addCategory(
+      taskFolder.id,
+      TaskCategory(
+        id: null,
+        name: '',
+        color: '#fff',
+        tasksCount: 0,
+        tempNewUUID: Uuid().v4(),
+      ),
+    );
   }
 
   @override
@@ -40,21 +39,20 @@ class TaskFolderItem extends ConsumerWidget {
       ),
       collapsedBackgroundColor: colors.surfaceContainer,
       backgroundColor: colors.surfaceContainer,
-      title: Row(
-        children: [
-          Icon(Icons.folder),
-          SizedBox(width: 20),
-          Text(taskFolder.name),
-        ],
-      ),
-      childrenPadding: EdgeInsets.only(left: 60, right: 20),
-      children: [
-        Divider(
-          height: 1,
-          thickness: 1,
-          indent: 0,
-          color: colors.onSecondary.withValues(alpha: 0.1),
+      title: GestureDetector(
+        onLongPress: onLongPress,
+        behavior: HitTestBehavior.opaque,
+        child: Row(
+          children: [
+            const Icon(Icons.folder_outlined),
+            const SizedBox(width: 12),
+            Text(taskFolder.name),
+          ],
         ),
+      ),
+      childrenPadding: const EdgeInsets.only(left: 52, right: 16, bottom: 8),
+      children: [
+        const Divider(height: 1, thickness: 1),
         ...taskFolder.categories.map((category) {
           if (category.id == null) {
             return TaskCategoryItem(
@@ -64,7 +62,6 @@ class TaskFolderItem extends ConsumerWidget {
               isEditable: true,
             );
           }
-
           return TaskCategoryItem(
             key: ValueKey(category.id),
             taskCategory: category,
@@ -72,12 +69,10 @@ class TaskFolderItem extends ConsumerWidget {
             isEditable: false,
           );
         }),
-        Padding(
-          padding: EdgeInsets.only(left: 25),
-          child: TextButton(
-            child: const Text('New'),
-            onPressed: () => _addNewCategory(ref),
-          ),
+        TextButton.icon(
+          icon: const Icon(Icons.add, size: 16),
+          label: const Text('New Category'),
+          onPressed: () => _addNewCategory(ref),
         ),
       ],
     );

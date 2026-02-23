@@ -18,7 +18,7 @@ class TaskFolder {
   factory TaskFolder.fromJson(Map<String, dynamic> json) => TaskFolder(
     id: json['id'] as int,
     name: json['name'] as String,
-    categories: (json['categories'] as List)
+    categories: (json['categories'] as List? ?? [])
         .map((e) => TaskCategory.fromJson(e as Map<String, dynamic>))
         .toList(),
     createdAt: json['created_at'] as String,
