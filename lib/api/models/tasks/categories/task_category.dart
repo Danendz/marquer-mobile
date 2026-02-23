@@ -18,12 +18,12 @@
   });
 
   factory TaskCategory.fromJson(Map<String, dynamic> json) => TaskCategory(
-    id: json['id'] as int,
+    id: json['id'] as int?,
     name: json['name'] as String,
     color: json['color'] as String,
     tasksCount: (json['tasks_count'] as int?) ?? 0,
-    createdAt: json['created_at'] as String,
-    updatedAt: json['updated_at'] as String,
+    createdAt: json['created_at'] as String?,
+    updatedAt: json['updated_at'] as String?,
   );
 
   TaskCategory copyWith({

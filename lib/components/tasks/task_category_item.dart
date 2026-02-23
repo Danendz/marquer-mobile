@@ -89,34 +89,34 @@ class _TaskCategoryItemState extends ConsumerState<TaskCategoryItem> {
   }
 
   Future<void> _openColorPicker() async {
-    Color temp = colorFromHex(taskCategory.color) ?? const Color(0xffffffff);
-    final picked = await showDialog<Color>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Pick a color'),
-        content: SingleChildScrollView(
-          child: ColorPicker(
-            pickerColor: temp,
-            onColorChanged: (c) => temp = c,
-            enableAlpha: false,
+    setState(() => _isBusy = true);
+    try {
+      Color temp = colorFromHex(taskCategory.color) ?? const Color(0xffffffff);
+      final picked = await showDialog<Color>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Pick a color'),
+          content: SingleChildScrollView(
+            child: ColorPicker(
+              pickerColor: temp,
+              onColorChanged: (c) => temp = c,
+              enableAlpha: false,
+            ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx, temp), child: const Text('OK')),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, temp), child: const Text('OK')),
-        ],
-      ),
-    );
-    if (mounted && picked != null) {
-      setState(() => _isBusy = true);
-      try {
+      );
+      if (mounted && picked != null) {
         await ref.read(taskFoldersProvider.notifier).updateCategory(
           folderId,
           taskCategory.copyWith(color: colorToHex(picked), name: _nameCtrl.text.trim()),
         );
-      } finally {
-        if (mounted) setState(() => _isBusy = false);
       }
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
     }
   }
 

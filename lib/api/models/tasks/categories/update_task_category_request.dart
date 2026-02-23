@@ -10,8 +10,8 @@
   });
 
   Map<String, dynamic> toJson() => {
-    'name': name,
-    'task_folder_id': taskFolderId,
-    'color': color,
+    if (name != null) 'name': name,
+    if (taskFolderId != null) 'task_folder_id': taskFolderId,
+    if (color != null) 'color': color,
   };
 }

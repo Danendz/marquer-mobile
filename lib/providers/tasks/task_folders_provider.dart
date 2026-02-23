@@ -148,6 +148,7 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
 
       _replaceCategory(folderId, category, insertedCategory);
     } catch (e) {
+      if (!ref.mounted) return;
       state = AsyncData(current);
       debugPrint(e.toString());
       ToastService.showError("Unable to save category! Try again later");
@@ -165,6 +166,7 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
     try {
       await _service.deleteCategory((category.id as int).toString());
     } catch (e) {
+      if (!ref.mounted) return;
       state = AsyncData(current);
       debugPrint(e.toString());
       ToastService.showError("Unable to delete category! Try again later");
@@ -201,6 +203,7 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
         UpsertTaskFolderRequest(name: name),
       );
     } catch (e) {
+      if (!ref.mounted) return;
       state = AsyncData(current);
       debugPrint(e.toString());
       ToastService.showError("Unable to update folder! Try again later");
@@ -219,6 +222,7 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
     try {
       await _service.deleteFolder(folderId.toString());
     } catch (e) {
+      if (!ref.mounted) return;
       state = AsyncData(current);
       debugPrint(e.toString());
       ToastService.showError("Unable to delete folder! Try again later");

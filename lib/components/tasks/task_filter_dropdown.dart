@@ -139,7 +139,7 @@ class _TaskFilterSheet extends ConsumerWidget {
                             style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5)),
                           ),
                           selected: isSelected,
-                          onTap: () {
+                          onTap: category.id == null ? null : () {
                             ref.read(taskFilterProvider.notifier).set(CategoryFilter(
                               categoryId: category.id!,
                               categoryName: category.name,

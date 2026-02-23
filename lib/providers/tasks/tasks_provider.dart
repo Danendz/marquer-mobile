@@ -55,6 +55,7 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
           if (t.id == optimistic.id) created else t,
       ]);
     } catch (e) {
+      if (!ref.mounted) return;
       state = AsyncData(current);
       debugPrint(e.toString());
       ToastService.showError("Unable to add task! Try again later");
@@ -80,6 +81,7 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
         UpdateTaskRequest(status: newStatus),
       );
     } catch (e) {
+      if (!ref.mounted) return;
       state = AsyncData(current);
       debugPrint(e.toString());
       ToastService.showError("Unable to update task! Try again later");
@@ -101,6 +103,7 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
         UpdateTaskRequest(name: newName),
       );
     } catch (e) {
+      if (!ref.mounted) return;
       state = AsyncData(current);
       debugPrint(e.toString());
       ToastService.showError("Unable to rename task! Try again later");
@@ -122,6 +125,7 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
         UpdateTaskRequest(status: TaskStatus.cancelled),
       );
     } catch (e) {
+      if (!ref.mounted) return;
       state = AsyncData(current);
       debugPrint(e.toString());
       ToastService.showError("Unable to delete task! Try again later");
@@ -140,6 +144,7 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
     try {
       await _service.deleteTask(task.id.toString());
     } catch (e) {
+      if (!ref.mounted) return;
       state = AsyncData(current);
       debugPrint(e.toString());
       ToastService.showError("Unable to delete task! Try again later");
@@ -161,6 +166,7 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
         UpdateTaskRequest(status: TaskStatus.draft),
       );
     } catch (e) {
+      if (!ref.mounted) return;
       state = AsyncData(current);
       debugPrint(e.toString());
       ToastService.showError("Unable to restore task! Try again later");

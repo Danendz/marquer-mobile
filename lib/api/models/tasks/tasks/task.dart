@@ -20,7 +20,10 @@ class Task {
   factory Task.fromJson(Map<String, dynamic> json) => Task(
     id: json['id'] as int,
     name: json['name'] as String,
-    status: TaskStatus.values.byName(json['status'] as String),
+    status: TaskStatus.values.firstWhere(
+      (e) => e.name == json['status'],
+      orElse: () => TaskStatus.draft,
+    ),
     taskCategoryId: json['task_category_id'] as int?,
     createdAt: json['created_at'] as String,
     updatedAt: json['updated_at'] as String,
