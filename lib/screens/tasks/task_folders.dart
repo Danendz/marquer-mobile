@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marquer/api/models/tasks/folders/task_folder.dart';
 import 'package:marquer/components/tasks/task_folder_item.dart';
 import 'package:marquer/providers/tasks/task_folders_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
@@ -8,45 +9,48 @@ import 'package:marquer/utils/action_sheet.dart';
 class TaskFoldersPage extends ConsumerWidget {
   const TaskFoldersPage({super.key});
 
-  void _showCreateFolderDialog(BuildContext context, WidgetRef ref) {
+  Future<void> _showCreateFolderDialog(BuildContext context, WidgetRef ref) async {
     final controller = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('New Folder'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Folder name'),
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty) {
-              ref.read(taskFoldersProvider.notifier).createFolder(value.trim());
-              Navigator.pop(context);
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final value = controller.text.trim();
-              if (value.isNotEmpty) {
-                ref.read(taskFoldersProvider.notifier).createFolder(value);
+    try {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('New Folder'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: 'Folder name'),
+            onSubmitted: (value) {
+              if (value.trim().isNotEmpty) {
+                ref.read(taskFoldersProvider.notifier).createFolder(value.trim());
                 Navigator.pop(context);
               }
             },
-            child: const Text('Create'),
           ),
-        ],
-      ),
-    );
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isNotEmpty) {
+                  ref.read(taskFoldersProvider.notifier).createFolder(value);
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
   }
 
-  void _showFolderOptions(BuildContext context, WidgetRef ref, dynamic folder) async {
+  void _showFolderOptions(BuildContext context, WidgetRef ref, TaskFolder folder) async {
     await HapticFeedback.mediumImpact();
     if (!context.mounted) return;
 
@@ -64,42 +68,45 @@ class TaskFoldersPage extends ConsumerWidget {
     }
   }
 
-  void _showRenameFolderDialog(BuildContext context, WidgetRef ref, dynamic folder) {
+  Future<void> _showRenameFolderDialog(BuildContext context, WidgetRef ref, TaskFolder folder) async {
     final controller = TextEditingController(text: folder.name);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename Folder'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Folder name'),
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty) {
-              ref.read(taskFoldersProvider.notifier).updateFolder(folder.id, value.trim());
-              Navigator.pop(context);
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final value = controller.text.trim();
-              if (value.isNotEmpty) {
-                ref.read(taskFoldersProvider.notifier).updateFolder(folder.id, value);
+    try {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Rename Folder'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: 'Folder name'),
+            onSubmitted: (value) {
+              if (value.trim().isNotEmpty) {
+                ref.read(taskFoldersProvider.notifier).updateFolder(folder.id, value.trim());
                 Navigator.pop(context);
               }
             },
-            child: const Text('Save'),
           ),
-        ],
-      ),
-    );
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isNotEmpty) {
+                  ref.read(taskFoldersProvider.notifier).updateFolder(folder.id, value);
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
   }
 
   @override
@@ -136,7 +143,7 @@ class TaskFoldersPage extends ConsumerWidget {
       ),
       error: (e, st) => Scaffold(
         appBar: AppBar(title: const Text('Manage Folders')),
-        body: Center(child: Text('Error: $e')),
+        body: const Center(child: Text('Failed to load folders.')),
       ),
       loading: () => Scaffold(
         appBar: AppBar(title: const Text('Manage Folders')),

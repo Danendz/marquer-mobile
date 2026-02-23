@@ -171,7 +171,7 @@ class _TaskCategoryItemState extends ConsumerState<TaskCategoryItem> {
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
                 ),
-                onSubmitted: (_) => _save(),
+                onSubmitted: (_) { if (!_isBusy) _save(); },
               ),
             ),
           ],

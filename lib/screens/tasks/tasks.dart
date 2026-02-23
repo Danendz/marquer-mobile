@@ -297,7 +297,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
                   ),
                 );
               },
-              error: (e, _) => Center(child: Text('Error: $e')),
+              error: (e, _) => Center(child: Text('Failed to load tasks. Pull down to retry.')),
               loading: () => const Center(child: CircularProgressIndicator()),
             ),
           ),

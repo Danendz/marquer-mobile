@@ -60,42 +60,45 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
     }
   }
 
-  void _showRenameDialog() {
+  Future<void> _showRenameDialog() async {
     final controller = TextEditingController(text: widget.task.name);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename Task'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Task name'),
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty) {
-              ref.read(tasksProvider.notifier).renameTask(widget.task, value.trim());
-              Navigator.pop(context);
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final value = controller.text.trim();
-              if (value.isNotEmpty) {
-                ref.read(tasksProvider.notifier).renameTask(widget.task, value);
+    try {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Rename Task'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: 'Task name'),
+            onSubmitted: (value) {
+              if (value.trim().isNotEmpty) {
+                ref.read(tasksProvider.notifier).renameTask(widget.task, value.trim());
                 Navigator.pop(context);
               }
             },
-            child: const Text('Save'),
           ),
-        ],
-      ),
-    );
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isNotEmpty) {
+                  ref.read(tasksProvider.notifier).renameTask(widget.task, value);
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
   }
 
   @override

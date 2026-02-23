@@ -153,7 +153,7 @@ class _TaskFilterSheet extends ConsumerWidget {
                   );
                 }).toList(),
               ),
-              error: (e, _) => Text('Error loading folders: $e'),
+              error: (e, _) => const Text('Failed to load folders.'),
               loading: () => const Center(child: CircularProgressIndicator()),
             ),
           ],

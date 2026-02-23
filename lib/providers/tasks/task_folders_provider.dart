@@ -167,7 +167,7 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
     } catch (e) {
       state = AsyncData(current);
       debugPrint(e.toString());
-      ToastService.showError("Unable to save category! Try again later");
+      ToastService.showError("Unable to delete category! Try again later");
     }
   }
 
