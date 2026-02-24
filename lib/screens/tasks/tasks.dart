@@ -107,7 +107,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 GestureDetector(
-                  onTap: () => showTaskFilterDropdown(context, ref),
+                  onTap: () => showTaskFilterDropdown(context),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

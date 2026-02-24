@@ -29,12 +29,12 @@ class Task {
     updatedAt: json['updated_at'] as String,
   );
 
-  Task copyWith({String? name, TaskStatus? status}) {
+  Task copyWith({String? name, TaskStatus? status, int? taskCategoryId}) {
     return Task(
       id: id,
       name: name ?? this.name,
       status: status ?? this.status,
-      taskCategoryId: taskCategoryId,
+      taskCategoryId: taskCategoryId ?? this.taskCategoryId,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

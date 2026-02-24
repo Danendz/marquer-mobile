@@ -8,7 +8,7 @@ import 'package:marquer/providers/tasks/task_filter_provider.dart';
 import 'package:marquer/providers/tasks/task_folders_provider.dart';
 import 'package:marquer/utils/colors.dart';
 
-void showTaskFilterDropdown(BuildContext context, WidgetRef ref) {
+void showTaskFilterDropdown(BuildContext context) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,

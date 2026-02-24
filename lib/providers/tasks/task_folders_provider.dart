@@ -99,6 +99,7 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
         ),
       );
     } catch (e) {
+      if (!ref.mounted) return;
       state = AsyncData(current);
       ToastService.showError("Unable to update category! Try again later");
     }

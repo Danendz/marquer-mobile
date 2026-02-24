@@ -46,10 +46,8 @@ final class TasksService {
     return resp.data;
   }
 
-  Future<Null> deleteFolder(String id) async {
-    final resp = await api.delete('/task-folders/$id');
-
-    return resp.data;
+  Future<void> deleteFolder(String id) async {
+    await api.delete('/task-folders/$id');
   }
 
   // Categories api
@@ -73,10 +71,8 @@ final class TasksService {
     return resp.data;
   }
 
-  Future<Null> deleteCategory(String id) async {
-    final resp = await api.delete('/task-categories/$id');
-
-    return resp.data;
+  Future<void> deleteCategory(String id) async {
+    await api.delete('/task-categories/$id');
   }
 
   // Tasks api
@@ -110,9 +106,7 @@ final class TasksService {
     return resp.data;
   }
 
-  Future<Null> deleteTask(String id) async {
-    final resp = await api.delete('/tasks/$id');
-
-    return resp.data;
+  Future<void> deleteTask(String id) async {
+    await api.delete('/tasks/$id');
   }
 }

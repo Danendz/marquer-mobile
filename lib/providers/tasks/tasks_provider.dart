@@ -26,7 +26,7 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
       AllTasksFilter() => GetTasksRequest(),
       CategoryFilter(:final categoryId) => GetTasksRequest(taskCategoryId: categoryId),
       FolderFilter(:final folderId) => GetTasksRequest(taskFolderId: folderId),
-      RecentlyDeletedFilter() => GetTasksRequest(status: 'cancelled'),
+      RecentlyDeletedFilter() => GetTasksRequest(status: TaskStatus.cancelled),
     };
 
     return _service.getTasks(request);
@@ -51,13 +51,17 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
       final created = await _service.createTask(
         CreateTaskRequest(name: name, taskCategoryId: categoryId),
       );
+      if (!ref.mounted) return;
       state = AsyncData([
         for (final t in state.asData!.value)
           if (t.id == optimistic.id) created else t,
       ]);
     } catch (e) {
       if (!ref.mounted) return;
-      state = AsyncData(current);
+      state = AsyncData([
+        for (final t in state.asData?.value ?? current)
+          if (t.id != optimistic.id) t,
+      ]);
       debugPrint(e.toString());
       ToastService.showError("Unable to add task! Try again later");
     }
@@ -83,7 +87,10 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
       );
     } catch (e) {
       if (!ref.mounted) return;
-      state = AsyncData(current);
+      state = AsyncData([
+        for (final t in state.asData?.value ?? current)
+          if (t.id == task.id) task else t,
+      ]);
       debugPrint(e.toString());
       ToastService.showError("Unable to update task! Try again later");
     }
@@ -105,7 +112,10 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
       );
     } catch (e) {
       if (!ref.mounted) return;
-      state = AsyncData(current);
+      state = AsyncData([
+        for (final t in state.asData?.value ?? current)
+          if (t.id == task.id) task else t,
+      ]);
       debugPrint(e.toString());
       ToastService.showError("Unable to rename task! Try again later");
     }
@@ -127,7 +137,8 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
       );
     } catch (e) {
       if (!ref.mounted) return;
-      state = AsyncData(current);
+      final latest = state.asData?.value ?? current;
+      state = AsyncData(latest.any((t) => t.id == task.id) ? latest : [task, ...latest]);
       debugPrint(e.toString());
       ToastService.showError("Unable to delete task! Try again later");
     }
@@ -146,7 +157,8 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
       await _service.deleteTask(task.id.toString());
     } catch (e) {
       if (!ref.mounted) return;
-      state = AsyncData(current);
+      final latest = state.asData?.value ?? current;
+      state = AsyncData(latest.any((t) => t.id == task.id) ? latest : [task, ...latest]);
       debugPrint(e.toString());
       ToastService.showError("Unable to delete task! Try again later");
     }
@@ -168,7 +180,8 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
       );
     } catch (e) {
       if (!ref.mounted) return;
-      state = AsyncData(current);
+      final latest = state.asData?.value ?? current;
+      state = AsyncData(latest.any((t) => t.id == task.id) ? latest : [task, ...latest]);
       debugPrint(e.toString());
       ToastService.showError("Unable to restore task! Try again later");
     }

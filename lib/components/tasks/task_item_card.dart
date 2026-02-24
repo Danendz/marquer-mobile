@@ -109,7 +109,7 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
     final isDeletedView = filter is RecentlyDeletedFilter;
 
     return GestureDetector(
-      onTap: isDeletedView ? null : () => ref.read(tasksProvider.notifier).toggleTaskStatus(widget.task),
+      onTap: (isDeletedView || _isCancelled) ? null : () => ref.read(tasksProvider.notifier).toggleTaskStatus(widget.task),
       onLongPress: _onLongPress,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

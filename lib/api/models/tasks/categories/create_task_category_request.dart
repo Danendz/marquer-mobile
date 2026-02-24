@@ -1,7 +1,7 @@
 ﻿class CreateTaskCategoryRequest {
   final String name;
   final int taskFolderId;
-  String? color;
+  final String? color;
 
   CreateTaskCategoryRequest({
     required this.name,

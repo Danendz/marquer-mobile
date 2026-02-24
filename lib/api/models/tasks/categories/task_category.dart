@@ -33,6 +33,7 @@
     int? tasksCount,
     String? createdAt,
     String? updatedAt,
+    String? tempNewUUID,
   }) {
     return TaskCategory(
       id: id ?? this.id,
@@ -41,6 +42,7 @@
       tasksCount: tasksCount ?? this.tasksCount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      tempNewUUID: tempNewUUID ?? this.tempNewUUID,
     );
   }
 }

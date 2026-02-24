@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 class AppLayout extends StatelessWidget {
   final Widget child;
   final String path;
-  static List<String> paths = ["/notes", "/tasks"];
+  static const List<String> paths = ["/notes", "/tasks"];
 
   const AppLayout({super.key, required this.child, required this.path});
 

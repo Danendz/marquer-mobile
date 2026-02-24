@@ -12,6 +12,8 @@ import 'package:marquer/utils/action_sheet.dart';
 import 'package:marquer/utils/colors.dart';
 import 'package:uuid/uuid.dart';
 
+const _uuid = Uuid();
+
 class TaskFolderItem extends ConsumerStatefulWidget {
   final TaskFolder taskFolder;
 
@@ -93,6 +95,7 @@ class _TaskFolderItemState extends ConsumerState<TaskFolderItem> {
   }
 
   void _addNewCategory() {
+    if (taskFolder.categories.any((c) => c.id == null)) return;
     ref.read(taskFoldersProvider.notifier).addCategory(
       taskFolder.id,
       TaskCategory(
@@ -100,7 +103,7 @@ class _TaskFolderItemState extends ConsumerState<TaskFolderItem> {
         name: '',
         color: '#fff',
         tasksCount: 0,
-        tempNewUUID: Uuid().v4(),
+        tempNewUUID: _uuid.v4(),
       ),
     );
   }
@@ -193,20 +196,13 @@ class _TaskFolderItemState extends ConsumerState<TaskFolderItem> {
                             ),
                           ),
                         ...taskFolder.categories.map((category) {
-                          if (category.id == null) {
-                            return TaskCategoryItem(
-                              key: ValueKey(category.tempNewUUID),
-                              taskCategory: category,
-                              folderId: taskFolder.id,
-                              isEditable: true,
-                            );
-                          }
+                          final isNew = category.id == null;
                           return TaskCategoryItem(
-                            key: ValueKey(category.id),
+                            key: ValueKey(isNew ? category.tempNewUUID : category.id),
                             taskCategory: category,
                             folderId: taskFolder.id,
-                            isEditable: false,
-                            onTap: () {
+                            isEditable: isNew,
+                            onTap: isNew ? null : () {
                               ref.read(taskFilterProvider.notifier).set(CategoryFilter(
                                 categoryId: category.id!,
                                 categoryName: category.name,

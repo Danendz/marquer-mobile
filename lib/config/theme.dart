@@ -11,6 +11,7 @@ final themeLight = ColorScheme(
   onError: hsl(0, 0, 98),
   surface: const Color(0xFFC4C4C4),
   onSurface: const Color(0xFF000000),
+  onSurfaceVariant: const Color(0xFF606060),
   outline: hsl(240, 5.9, 90),
   surfaceTint: hsl(142.1, 76.2, 36.3),
 );
@@ -34,6 +35,7 @@ final themeDark = ColorScheme(
   error: const Color(0xFFCF6679),
   onError: const Color(0xFF1B0B10),
 
+  onSurfaceVariant: const Color(0xFF9E9E9E),
   outline: const Color(0xFF363739),
   surfaceTint: const Color(0xFF4C66A1),
 );

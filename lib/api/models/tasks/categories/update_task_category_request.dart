@@ -1,12 +1,12 @@
 ﻿class UpdateTaskCategoryRequest {
-  String? name;
-  int? taskFolderId;
-  String? color;
+  final String? name;
+  final int? taskFolderId;
+  final String? color;
 
-  UpdateTaskCategoryRequest({
+  const UpdateTaskCategoryRequest({
     this.name,
     this.taskFolderId,
-    this.color
+    this.color,
   });
 
   Map<String, dynamic> toJson() => {

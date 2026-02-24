@@ -36,12 +36,7 @@ class _NotesPageState extends State<NotesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            const Text("Notes"),
-            const Spacer(),
-          ],
-        ),
+        title: const Text("Notes"),
       ),
       body: Center(
         child: _loading

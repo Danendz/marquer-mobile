@@ -6,7 +6,8 @@ import 'package:marquer/utils/colors.dart';
 
 Future<int?> showCategoryPickerSheet(BuildContext context, WidgetRef ref) async {
   final folders = await ref.read(taskFoldersProvider.future);
-  if (folders.isEmpty) return null;
+  final hasSaved = folders.any((f) => f.categories.any((c) => c.id != null));
+  if (!hasSaved) return null;
   if (!context.mounted) return null;
 
   return showModalBottomSheet<int>(
@@ -37,24 +38,25 @@ Future<int?> showCategoryPickerSheet(BuildContext context, WidgetRef ref) async 
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 12),
-                ...folders.expand((folder) => folder.categories.map((category) {
-                  return ListTile(
-                    leading: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: colorFromHex(category.color) ?? Colors.white,
+                ...folders.expand((folder) =>
+                  folder.categories.where((c) => c.id != null).map((category) {
+                    return ListTile(
+                      leading: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: colorFromHex(category.color) ?? Colors.white,
+                        ),
                       ),
-                    ),
-                    title: Text(category.name),
-                    subtitle: Text(folder.name, style: TextStyle(
-                      color: colors.onSurface.withValues(alpha: 0.5),
-                      fontSize: 12,
-                    )),
-                    onTap: () => Navigator.pop(context, category.id),
-                  );
-                })),
+                      title: Text(category.name),
+                      subtitle: Text(folder.name, style: TextStyle(
+                        color: colors.onSurface.withValues(alpha: 0.5),
+                        fontSize: 12,
+                      )),
+                      onTap: () => Navigator.pop(context, category.id!),
+                    );
+                  })),
               ],
             ),
           ),
