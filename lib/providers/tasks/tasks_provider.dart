@@ -25,6 +25,7 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
     final request = switch (filter) {
       AllTasksFilter() => GetTasksRequest(),
       CategoryFilter(:final categoryId) => GetTasksRequest(taskCategoryId: categoryId),
+      FolderFilter(:final folderId) => GetTasksRequest(taskFolderId: folderId),
       RecentlyDeletedFilter() => GetTasksRequest(status: 'cancelled'),
     };
 

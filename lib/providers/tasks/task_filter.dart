@@ -14,4 +14,14 @@ class CategoryFilter extends TaskFilter {
   });
 }
 
+class FolderFilter extends TaskFilter {
+  final int folderId;
+  final String folderName;
+
+  FolderFilter({
+    required this.folderId,
+    required this.folderName,
+  });
+}
+
 class RecentlyDeletedFilter extends TaskFilter {}

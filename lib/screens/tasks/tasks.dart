@@ -32,11 +32,14 @@ class _TasksPageState extends ConsumerState<TasksPage> {
 
   void _onAddFocusChange() {
     if (!_addFocusNode.hasFocus && _isAdding) {
-      if (_addController.text.trim().isNotEmpty) {
-        _submitTask();
-      } else {
-        _stopAdding();
+      final name = _addController.text.trim();
+      if (name.isNotEmpty) {
+        final filter = ref.read(taskFilterProvider);
+        int? categoryId;
+        if (filter is CategoryFilter) categoryId = filter.categoryId;
+        ref.read(tasksProvider.notifier).addTask(name, categoryId);
       }
+      _stopAdding();
     }
   }
 
@@ -52,6 +55,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
     return switch (filter) {
       AllTasksFilter() => 'All To-Do',
       CategoryFilter(:final categoryName) => categoryName,
+      FolderFilter(:final folderName) => folderName,
       RecentlyDeletedFilter() => 'Recently Deleted',
     };
   }
@@ -119,16 +123,27 @@ class _TasksPageState extends ConsumerState<TasksPage> {
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.more_vert),
-                  onPressed: () async {
-                    final result = await showAppActionSheet(context, const [
-                      AppAction(value: 'manage', icon: Icons.folder_outlined, label: 'Manage Folders'),
-                    ]);
-                    if (result == 'manage' && context.mounted) {
-                      context.go('/tasks/manage-folders');
-                    }
-                  },
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (filter is! AllTasksFilter)
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        tooltip: 'Reset filter',
+                        onPressed: () => ref.read(taskFilterProvider.notifier).set(AllTasksFilter()),
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.more_vert),
+                      onPressed: () async {
+                        final result = await showAppActionSheet(context, const [
+                          AppAction(value: 'manage', icon: Icons.folder_outlined, label: 'Manage Folders'),
+                        ]);
+                        if (result == 'manage' && context.mounted) {
+                          context.go('/tasks/manage-folders');
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),

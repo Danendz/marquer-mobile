@@ -11,12 +11,14 @@ class TaskCategoryItem extends ConsumerStatefulWidget {
   final TaskCategory taskCategory;
   final int folderId;
   final bool isEditable; // true = new unsaved category
+  final VoidCallback? onTap;
 
   const TaskCategoryItem({
     super.key,
     required this.taskCategory,
     required this.folderId,
     required this.isEditable,
+    this.onTap,
   });
 
   @override
@@ -172,6 +174,7 @@ class _TaskCategoryItemState extends ConsumerState<TaskCategoryItem> {
                   contentPadding: EdgeInsets.zero,
                 ),
                 onSubmitted: (_) { if (!_isBusy) _save(); },
+                onTapOutside: (_) => _focusNode.unfocus(),
               ),
             ),
           ],
@@ -179,26 +182,30 @@ class _TaskCategoryItemState extends ConsumerState<TaskCategoryItem> {
       );
     }
 
-    return GestureDetector(
-      onLongPress: _onLongPress,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: _openColorPicker,
-              child: _ColorDot(color: catColor),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(taskCategory.name, style: const TextStyle(fontSize: 14)),
-            ),
-            Text(
-              taskCategory.tasksCount.toString(),
-              style: TextStyle(fontSize: 13, color: colors.onSurface.withValues(alpha: 0.4)),
-            ),
-          ],
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: widget.onTap,
+        onLongPress: _onLongPress,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: _openColorPicker,
+                child: _ColorDot(color: catColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(taskCategory.name, style: const TextStyle(fontSize: 14)),
+              ),
+              Text(
+                taskCategory.tasksCount.toString(),
+                style: TextStyle(fontSize: 13, color: colors.onSurface.withValues(alpha: 0.4)),
+              ),
+            ],
+          ),
         ),
       ),
     );

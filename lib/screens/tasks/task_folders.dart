@@ -1,152 +1,145 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:marquer/api/models/tasks/folders/task_folder.dart';
+import 'package:go_router/go_router.dart';
 import 'package:marquer/components/tasks/task_folder_item.dart';
 import 'package:marquer/providers/tasks/task_folders_provider.dart';
-import 'package:marquer/utils/action_sheet.dart';
+import 'package:marquer/utils/colors.dart';
 
-class TaskFoldersPage extends ConsumerWidget {
+class TaskFoldersPage extends ConsumerStatefulWidget {
   const TaskFoldersPage({super.key});
 
-  Future<void> _showCreateFolderDialog(BuildContext context, WidgetRef ref) async {
-    final controller = TextEditingController();
-    try {
-      await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('New Folder'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(hintText: 'Folder name'),
-            onSubmitted: (value) {
-              if (value.trim().isNotEmpty) {
-                ref.read(taskFoldersProvider.notifier).createFolder(value.trim());
-                Navigator.pop(context);
-              }
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                final value = controller.text.trim();
-                if (value.isNotEmpty) {
-                  ref.read(taskFoldersProvider.notifier).createFolder(value);
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      controller.dispose();
-    }
-  }
+  @override
+  ConsumerState<TaskFoldersPage> createState() => _TaskFoldersPageState();
+}
 
-  void _showFolderOptions(BuildContext context, WidgetRef ref, TaskFolder folder) async {
-    await HapticFeedback.mediumImpact();
-    if (!context.mounted) return;
+class _TaskFoldersPageState extends ConsumerState<TaskFoldersPage> {
+  bool _isAdding = false;
+  final TextEditingController _addController = TextEditingController();
+  final FocusNode _addFocusNode = FocusNode();
 
-    final result = await showAppActionSheet(context, const [
-      AppAction(value: 'rename', icon: Icons.edit_outlined, label: 'Rename'),
-      AppAction(value: 'delete', icon: Icons.delete_outline, label: 'Delete', isDestructive: true),
-    ]);
-
-    if (!context.mounted || result == null) return;
-
-    if (result == 'rename') {
-      _showRenameFolderDialog(context, ref, folder);
-    } else if (result == 'delete') {
-      ref.read(taskFoldersProvider.notifier).deleteFolder(folder.id);
-    }
-  }
-
-  Future<void> _showRenameFolderDialog(BuildContext context, WidgetRef ref, TaskFolder folder) async {
-    final controller = TextEditingController(text: folder.name);
-    try {
-      await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Rename Folder'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(hintText: 'Folder name'),
-            onSubmitted: (value) {
-              if (value.trim().isNotEmpty) {
-                ref.read(taskFoldersProvider.notifier).updateFolder(folder.id, value.trim());
-                Navigator.pop(context);
-              }
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                final value = controller.text.trim();
-                if (value.isNotEmpty) {
-                  ref.read(taskFoldersProvider.notifier).updateFolder(folder.id, value);
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      controller.dispose();
-    }
+  @override
+  void initState() {
+    super.initState();
+    _addFocusNode.addListener(_onAddFocusChange);
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void dispose() {
+    _addFocusNode.removeListener(_onAddFocusChange);
+    _addFocusNode.dispose();
+    _addController.dispose();
+    super.dispose();
+  }
+
+  void _onAddFocusChange() {
+    if (!_addFocusNode.hasFocus && _isAdding) {
+      final name = _addController.text.trim();
+      if (name.isNotEmpty) {
+        ref.read(taskFoldersProvider.notifier).createFolder(name);
+      }
+      _stopAdding();
+    }
+  }
+
+  void _startAdding() {
+    setState(() {
+      _isAdding = true;
+      _addController.clear();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _addFocusNode.requestFocus());
+  }
+
+  void _stopAdding() {
+    setState(() => _isAdding = false);
+    _addController.clear();
+  }
+
+  Future<void> _submitCreate() async {
+    final name = _addController.text.trim();
+    if (name.isEmpty) return;
+    _addController.clear();
+    await ref.read(taskFoldersProvider.notifier).createFolder(name);
+    if (mounted) _addFocusNode.requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = getColors(context);
     final foldersAsync = ref.watch(taskFoldersProvider);
     return foldersAsync.when(
       data: (folders) => Scaffold(
         appBar: AppBar(
           title: const Text('Manage Folders'),
+          leading: BackButton(onPressed: () => context.go('/tasks')),
         ),
         body: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: RefreshIndicator(
             onRefresh: () => ref.refresh(taskFoldersProvider.future),
-            child: ListView.separated(
+            child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: folders.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final folder = folders[index];
-                return TaskFolderItem(
-                  key: ValueKey(folder.id),
-                  taskFolder: folder,
-                  onLongPress: () => _showFolderOptions(context, ref, folder),
-                );
-              },
+              children: [
+                for (int i = 0; i < folders.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 8),
+                  TaskFolderItem(
+                    key: ValueKey(folders[i].id),
+                    taskFolder: folders[i],
+                  ),
+                ],
+                if (_isAdding) ...[
+                  if (folders.isNotEmpty) const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: colors.surfaceContainer,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.folder_outlined),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: _addController,
+                              focusNode: _addFocusNode,
+                              onTapOutside: (_) => _addFocusNode.unfocus(),
+                              decoration: const InputDecoration(
+                                hintText: 'Folder name...',
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              style: const TextStyle(fontSize: 14),
+                              onSubmitted: (_) => _submitCreate(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ),
         floatingActionButton: FloatingActionButton(
-          onPressed: () => _showCreateFolderDialog(context, ref),
+          onPressed: _startAdding,
           child: const Icon(Icons.create_new_folder),
         ),
       ),
       error: (e, st) => Scaffold(
-        appBar: AppBar(title: const Text('Manage Folders')),
+        appBar: AppBar(
+          title: const Text('Manage Folders'),
+          leading: BackButton(onPressed: () => context.go('/tasks')),
+        ),
         body: const Center(child: Text('Failed to load folders.')),
       ),
       loading: () => Scaffold(
-        appBar: AppBar(title: const Text('Manage Folders')),
+        appBar: AppBar(
+          title: const Text('Manage Folders'),
+          leading: BackButton(onPressed: () => context.go('/tasks')),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       ),
     );
