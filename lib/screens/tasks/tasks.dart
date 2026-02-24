@@ -21,6 +21,7 @@ class TasksPage extends ConsumerStatefulWidget {
 class _TasksPageState extends ConsumerState<TasksPage> {
   bool _isAdding = false;
   bool _completedExpanded = false;
+  bool _suppressStopOnFocusLoss = false;
   final _addController = TextEditingController();
   final _addFocusNode = FocusNode();
 
@@ -32,6 +33,7 @@ class _TasksPageState extends ConsumerState<TasksPage> {
 
   void _onAddFocusChange() {
     if (!_addFocusNode.hasFocus && _isAdding) {
+      if (_suppressStopOnFocusLoss) return;
       final name = _addController.text.trim();
       if (name.isNotEmpty) {
         final filter = ref.read(taskFilterProvider);
@@ -85,9 +87,11 @@ class _TasksPageState extends ConsumerState<TasksPage> {
       categoryId = filter.categoryId;
     }
 
+    _suppressStopOnFocusLoss = true;
     ref.read(tasksProvider.notifier).addTask(name, categoryId);
     _addController.clear();
     _addFocusNode.requestFocus();
+    _suppressStopOnFocusLoss = false;
   }
 
   @override
@@ -312,7 +316,18 @@ class _TasksPageState extends ConsumerState<TasksPage> {
                   ),
                 );
               },
-              error: (e, _) => Center(child: Text('Failed to load tasks. Pull down to retry.')),
+              error: (e, _) => RefreshIndicator(
+                onRefresh: () => ref.refresh(tasksProvider.future),
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(
+                      height: 400,
+                      child: Center(child: Text('Failed to load tasks. Pull down to retry.')),
+                    ),
+                  ],
+                ),
+              ),
               loading: () => const Center(child: CircularProgressIndicator()),
             ),
           ),

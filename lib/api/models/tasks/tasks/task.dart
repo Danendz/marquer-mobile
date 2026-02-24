@@ -29,12 +29,14 @@ class Task {
     updatedAt: json['updated_at'] as String,
   );
 
-  Task copyWith({String? name, TaskStatus? status, int? taskCategoryId}) {
+  static const _unset = Object();
+
+  Task copyWith({String? name, TaskStatus? status, Object? taskCategoryId = _unset}) {
     return Task(
       id: id,
       name: name ?? this.name,
       status: status ?? this.status,
-      taskCategoryId: taskCategoryId ?? this.taskCategoryId,
+      taskCategoryId: identical(taskCategoryId, _unset) ? this.taskCategoryId : taskCategoryId as int?,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
