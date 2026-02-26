@@ -35,6 +35,9 @@ class _NotesPageState extends State<NotesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("Notes"),
+      ),
       body: Center(
         child: _loading
             ? const CircularProgressIndicator()

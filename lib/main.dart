@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/components/managers/global_manager.dart';
 import 'package:marquer/config/theme.dart';
 import 'package:marquer/router/router.dart';
@@ -19,9 +20,11 @@ Future<void> main() async {
   await getIt<AuthStore>().loadFromStorage();
 
   runApp(
-    MultiProvider(
-      providers: [ChangeNotifierProvider.value(value: getIt<UserStore>())],
-      child: MyApp(),
+    ProviderScope(
+      child: MultiProvider(
+        providers: [ChangeNotifierProvider.value(value: getIt<UserStore>())],
+        child: MyApp(),
+      ),
     ),
   );
 }
