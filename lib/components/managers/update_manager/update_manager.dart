@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:marquer/components/managers/update_manager/update_controller.dart';
+import 'package:marquer/components/managers/update_manager/update_info.dart';
 import 'package:marquer/components/managers/update_manager/progress_dialog.dart';
 
 class UpdateManager extends StatefulWidget {
@@ -30,36 +31,23 @@ class _UpdateManagerState extends State<UpdateManager> {
     if (_isChecking) return;
     _isChecking = true;
 
-    final downloadUrl = await _controller.checkForUpdate();
+    final updateInfo = await _controller.checkForUpdate();
     _isChecking = false;
 
-    if (downloadUrl == null) return;
-    if (!mounted) return;
+    if (updateInfo == null) return;
 
     final context = widget.rootNavKey.currentContext;
-    if (context == null) return;
+    if (context == null || !context.mounted) return;
 
     final shouldUpdate = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Update available'),
-        content: const Text('A new version is available. Download now?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Later'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Update'),
-          ),
-        ],
-      ),
+      builder: (ctx) => _UpdateDialog(updateInfo: updateInfo),
     );
 
     if (shouldUpdate == true) {
-      _startDownloadFlow(context, downloadUrl);
+      if (!context.mounted) return;
+      _startDownloadFlow(context, updateInfo.downloadUrl);
     }
   }
 
@@ -88,4 +76,47 @@ class _UpdateManagerState extends State<UpdateManager> {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+class _UpdateDialog extends StatelessWidget {
+  const _UpdateDialog({required this.updateInfo});
+
+  final UpdateInfo updateInfo;
+
+  @override
+  Widget build(BuildContext context) {
+    final version = updateInfo.versionFull ?? updateInfo.downloadUrl;
+    final changelog = updateInfo.changelog;
+
+    return AlertDialog(
+      title: Text('Update available (v$version)'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (changelog != null && changelog.isNotEmpty) ...[
+              const Text(
+                "What's new:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(changelog),
+            ] else
+              const Text('A new version is available. Download now?'),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Later'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Update'),
+        ),
+      ],
+    );
+  }
 }
