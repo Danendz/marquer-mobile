@@ -5,13 +5,14 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:marquer/api/models/update/check_latest_request.dart';
 import 'package:marquer/api/services/update_service.dart';
+import 'package:marquer/components/managers/update_manager/update_info.dart';
 import 'package:apk_sideload/install_apk.dart';
 
 class UpdateController {
   final UpdateService _updateService = UpdateService();
   final Dio _dio = Dio();
 
-  Future<String?> checkForUpdate() async {
+  Future<UpdateInfo?> checkForUpdate() async {
     if (kDebugMode) return null;
 
     try {
@@ -23,7 +24,11 @@ class UpdateController {
       );
 
       if (apiLatest.version != currentVersion) {
-        return apiLatest.downloadUrl;
+        return UpdateInfo(
+          downloadUrl: apiLatest.downloadUrl,
+          changelog: apiLatest.changelog,
+          versionFull: apiLatest.versionFull,
+        );
       }
     } catch (e) {
       debugPrint('Update check failed: $e');

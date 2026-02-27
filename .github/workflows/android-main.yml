@@ -9,8 +9,9 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
+  pull-requests: read
 
 jobs:
   build-upload-notify:
@@ -19,6 +20,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -115,13 +118,88 @@ jobs:
           test "$TOKEN" != "null"
           echo "OIDC_TOKEN=$TOKEN" >> $GITHUB_ENV
 
+      - name: Generate changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${PUBSPEC_VERSION_NAME}"
+
+          # Fetch all tags so we can check existence and find the previous one
+          git fetch --tags --quiet
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            # Tag already exists — this is a rebuild, skip changelog
+            echo "TAG_EXISTS=true" >> $GITHUB_ENV
+            echo "CHANGELOG=" >> $GITHUB_ENV
+          else
+            echo "TAG_EXISTS=false" >> $GITHUB_ENV
+
+            # Find the most recent previous tag
+            PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
+
+            if [ -z "$PREV_TAG" ]; then
+              echo "CHANGELOG=Initial release" >> $GITHUB_ENV
+            else
+              # Collect merged PR titles between PREV_TAG and HEAD
+              RANGE="${PREV_TAG}..HEAD"
+              SHAS=$(git log "$RANGE" --format="%H")
+
+              FEAT_LINES=""
+              HAS_GENERIC=false
+
+              while IFS= read -r sha; do
+                [ -z "$sha" ] && continue
+                # Get PR title for this commit (first associated PR)
+                PR_TITLE=$(gh api "repos/${{ github.repository }}/commits/${sha}/pulls" \
+                  --jq '.[0].title // empty' 2>/dev/null || true)
+                [ -z "$PR_TITLE" ] && continue
+
+                PREFIX=$(echo "$PR_TITLE" | sed 's/: .*//')
+                DESC=$(echo "$PR_TITLE" | sed 's/^[^:]*: //')
+                # Capitalize first letter
+                DESC="$(echo "${DESC:0:1}" | tr '[:lower:]' '[:upper:]')${DESC:1}"
+
+                case "$PREFIX" in
+                  feat|fix|hotfix)
+                    FEAT_LINES="${FEAT_LINES}• ${DESC}"$'\n'
+                    ;;
+                  chore|refactor|docs|test|bump)
+                    HAS_GENERIC=true
+                    ;;
+                esac
+              done <<< "$SHAS"
+
+              # Deduplicate feat lines
+              FEAT_LINES=$(echo "$FEAT_LINES" | sort -u)
+
+              BODY=""
+              if [ -n "$FEAT_LINES" ]; then
+                BODY="${FEAT_LINES}"
+              fi
+              if [ "$HAS_GENERIC" = true ]; then
+                BODY="${BODY}• Performance improvements and minor bug fixes"$'\n'
+              fi
+
+              if [ -z "$BODY" ]; then
+                BODY="Performance improvements and minor bug fixes"
+              fi
+
+              # Write multiline value to GITHUB_ENV
+              {
+                echo "CHANGELOG<<EOF_CHANGELOG"
+                echo "$BODY"
+                echo "EOF_CHANGELOG"
+              } >> $GITHUB_ENV
+            fi
+          fi
+
       - name: Notify Laravel (create release record)
         env:
           URL: ${{ vars.BACKEND_NOTIFY_URL }}
           S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
           S3_BUCKET: ${{ vars.S3_BUCKET }}
         run: |
-          BODY=$(jq -n \
+          BASE=$(jq -n \
             --arg platform "android" \
             --arg channel "stable" \
             --arg version "$PUBSPEC_VERSION_NAME" \
@@ -145,7 +223,21 @@ jobs:
               key_commit:$key_commit
             }')
 
+          if [ -n "$CHANGELOG" ]; then
+            BODY=$(echo "$BASE" | jq --arg changelog "$CHANGELOG" '. + {changelog:$changelog}')
+          else
+            BODY="$BASE"
+          fi
+
           curl -sS -X POST "$URL" \
             -H "Authorization: Bearer $OIDC_TOKEN" \
             -H "Content-Type: application/json" \
             --data "$BODY"
+
+      - name: Create git tag
+        if: env.TAG_EXISTS == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${PUBSPEC_VERSION_NAME}"
+          git push origin "v${PUBSPEC_VERSION_NAME}"
