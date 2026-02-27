@@ -2,6 +2,7 @@
 import 'package:marquer/api/api.dart';
 import 'package:marquer/api/models/auth/auth_response.dart';
 import 'package:marquer/api/models/auth/login_request.dart';
+import 'package:marquer/api/models/auth/user.dart';
 
 import '../models/auth/register_request.dart';
 import '../models/model_parser.dart';
@@ -28,6 +29,25 @@ final class AuthService {
       body: data,
       fromJsonT: (json) =>
           ModelParser.objectFromJson(json, AuthResponse.fromJson),
+    );
+
+    return resp.data;
+  }
+
+  Future<AuthResponse> refresh() async {
+    final resp = await api.post<AuthResponse>(
+      '/refresh',
+      fromJsonT: (json) =>
+          ModelParser.objectFromJson(json, AuthResponse.fromJson),
+    );
+
+    return resp.data;
+  }
+
+  Future<User> me() async {
+    final resp = await api.get<User>(
+      '/me',
+      fromJsonT: (json) => ModelParser.objectFromJson(json, User.fromJson),
     );
 
     return resp.data;

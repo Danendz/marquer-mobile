@@ -1,6 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:marquer/api/models/notes/list_note.dart';
-import 'package:marquer/components/notes/NoteTile.dart';
+import 'package:marquer/components/notes/note_tile.dart';
 
 class NotesTiles extends StatelessWidget {
   final List<ListNote> notes;

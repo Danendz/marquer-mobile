@@ -2,7 +2,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/notes/list_note.dart';
 import 'package:marquer/api/services/notes_service.dart';
-import 'package:marquer/components/notes/NotesTiles.dart';
+import 'package:marquer/components/notes/notes_tiles.dart';
 
 class NotesPage extends StatefulWidget {
   const NotesPage({super.key});
@@ -35,6 +35,9 @@ class _NotesPageState extends State<NotesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("Notes"),
+      ),
       body: Center(
         child: _loading
             ? const CircularProgressIndicator()

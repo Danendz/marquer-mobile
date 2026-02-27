@@ -1,13 +1,12 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/auth/login_request.dart';
 import 'package:marquer/api/services/auth_service.dart';
 import 'package:marquer/stores/auth_store.dart';
 
 class LoginPage extends StatefulWidget {
-  final AuthStore auth;
-
-  const LoginPage({super.key, required this.auth});
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -15,6 +14,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
+  final AuthStore _auth = GetIt.instance<AuthStore>();
 
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -102,7 +102,7 @@ class _LoginPageState extends State<LoginPage> {
       final data = await authService.login(
         LoginRequest(email: email, password: password),
       );
-      await widget.auth.setToken(data.token);
+      await _auth.setToken(data.token);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
