@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:marquer/api/models/study/study_session.dart';
 import 'package:marquer/layouts/app_layout.dart';
 import 'package:marquer/screens/home.dart';
 import 'package:marquer/screens/notes/notes.dart';
 import 'package:marquer/screens/notes/notes_edit.dart';
 import 'package:marquer/screens/notes/notes_add.dart';
+import 'package:marquer/screens/study/active_timer_screen.dart';
+import 'package:marquer/screens/study/manage_subjects_screen.dart';
+import 'package:marquer/screens/study/study_sessions_screen.dart';
+import 'package:marquer/screens/study/study_stats_screen.dart';
 
 import '../screens/auth/login.dart';
 import '../screens/auth/register.dart';
@@ -39,7 +44,7 @@ GoRouter createRouter() {
       }
 
       if (auth.status == AuthStatus.authenticated) {
-        if (isSplash || isLogin) return '/tasks';
+        if (isSplash || isLogin) return '/';
       }
 
       return null;
@@ -48,6 +53,14 @@ GoRouter createRouter() {
       GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
       GoRoute(path: '/login', builder: (context, state) => LoginPage()),
       GoRoute(path: '/register', builder: (context, state) => RegisterPage()),
+      // Full-screen routes (outside ShellRoute — no bottom nav)
+      GoRoute(
+        path: '/study/active',
+        builder: (context, state) {
+          final session = state.extra as StudySession;
+          return ActiveTimerScreen(session: session);
+        },
+      ),
       ShellRoute(
         builder: (context, state, child) {
           return AppLayout(path: state.uri.toString(), child: child);
@@ -76,6 +89,18 @@ GoRouter createRouter() {
           GoRoute(
             path: "/tasks/manage-folders",
             builder: (context, state) => const TaskFoldersPage(),
+          ),
+          GoRoute(
+            path: '/study/stats',
+            builder: (context, state) => const StudyStatsScreen(),
+          ),
+          GoRoute(
+            path: '/study/sessions',
+            builder: (context, state) => const StudySessionsScreen(),
+          ),
+          GoRoute(
+            path: '/study/subjects',
+            builder: (context, state) => const ManageSubjectsScreen(),
           ),
         ],
       ),
