@@ -46,7 +46,7 @@ Version bumps follow: `pubspec.yaml` version → CI tag `v{version}`.
 ## Update Dialog
 
 Shows version number and changelog in a scrollable area:
-```
+```text
 Update available (v1.0.9)
 
 What's new:

@@ -85,11 +85,11 @@ class _UpdateDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final version = updateInfo.versionFull ?? updateInfo.downloadUrl;
+    final version = updateInfo.versionFull;
     final changelog = updateInfo.changelog;
 
     return AlertDialog(
-      title: Text('Update available (v$version)'),
+      title: Text(version != null ? 'Update available (v$version)' : 'Update available'),
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
