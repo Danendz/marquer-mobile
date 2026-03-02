@@ -53,19 +53,35 @@ jobs:
           echo "PUBSPEC_VERSION_NAME=$NAME" >> $GITHUB_ENV
           echo "PUBSPEC_BUILD_NUMBER=$NUM" >> $GITHUB_ENV
 
+      - name: Check if version tag already exists
+        run: |
+          git fetch --tags --quiet
+          TAG="v${PUBSPEC_VERSION_NAME}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists — skipping release"
+            echo "SKIP_RELEASE=true" >> $GITHUB_ENV
+          else
+            echo "Tag $TAG not found — proceeding with release"
+            echo "SKIP_RELEASE=false" >> $GITHUB_ENV
+          fi
+
       - name: Create .env for build
+        if: env.SKIP_RELEASE != 'true'
         run: |
           cat > .env << 'EOF'
           MARQUER_API_URL=${{ vars.MARQUER_API_URL }}
           AUTH_API_URL=${{ vars.AUTH_API_URL }}
+          GLITCHTIP_DSN=${{ vars.GLITCHTIP_DSN }}
           EOF
 
       - name: Decode keystore
+        if: env.SKIP_RELEASE != 'true'
         run: |
           mkdir -p android/app
           printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
 
       - name: Create key.properties
+        if: env.SKIP_RELEASE != 'true'
         run: |
           cat > android/key.properties <<EOF
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
@@ -75,15 +91,19 @@ jobs:
           EOF
 
       - name: Pub get
+        if: env.SKIP_RELEASE != 'true'
         run: flutter pub get
 
       - name: Gradle cache (cache-only)
+        if: env.SKIP_RELEASE != 'true'
         uses: burrunan/gradle-cache-action@v3
 
       - name: Build release APK
+        if: env.SKIP_RELEASE != 'true'
         run: flutter build apk --release
 
       - name: Configure S3 creds for Railway Bucket
+        if: env.SKIP_RELEASE != 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
@@ -92,6 +112,7 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> $GITHUB_ENV
 
       - name: Upload APK to Railway Bucket
+        if: env.SKIP_RELEASE != 'true'
         env:
           S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
           S3_BUCKET: ${{ vars.S3_BUCKET }}
@@ -109,6 +130,7 @@ jobs:
           echo "APK_KEY_LATEST=${KEY_LATEST}" >> $GITHUB_ENV
 
       - name: Mint GitHub OIDC token (audience=laravel)
+        if: env.SKIP_RELEASE != 'true'
         env:
           AUDIENCE: "api://marquer-backend"
         run: |
@@ -119,81 +141,72 @@ jobs:
           echo "OIDC_TOKEN=$TOKEN" >> $GITHUB_ENV
 
       - name: Generate changelog
+        if: env.SKIP_RELEASE != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${PUBSPEC_VERSION_NAME}"
 
-          # Fetch all tags so we can check existence and find the previous one
-          git fetch --tags --quiet
+          # Find the most recent previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
 
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            # Tag already exists — this is a rebuild, skip changelog
-            echo "TAG_EXISTS=true" >> $GITHUB_ENV
-            echo "CHANGELOG=" >> $GITHUB_ENV
+          if [ -z "$PREV_TAG" ]; then
+            echo "CHANGELOG=Initial release" >> $GITHUB_ENV
           else
-            echo "TAG_EXISTS=false" >> $GITHUB_ENV
+            # Collect merged PR titles between PREV_TAG and HEAD
+            RANGE="${PREV_TAG}..HEAD"
+            SHAS=$(git log "$RANGE" --format="%H")
 
-            # Find the most recent previous tag
-            PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
+            FEAT_LINES=""
+            HAS_GENERIC=false
 
-            if [ -z "$PREV_TAG" ]; then
-              echo "CHANGELOG=Initial release" >> $GITHUB_ENV
-            else
-              # Collect merged PR titles between PREV_TAG and HEAD
-              RANGE="${PREV_TAG}..HEAD"
-              SHAS=$(git log "$RANGE" --format="%H")
+            while IFS= read -r sha; do
+              [ -z "$sha" ] && continue
+              # Get PR title for this commit (first associated PR)
+              PR_TITLE=$(gh api "repos/${{ github.repository }}/commits/${sha}/pulls" \
+                --jq '.[0].title // empty' 2>/dev/null || true)
+              [ -z "$PR_TITLE" ] && continue
 
-              FEAT_LINES=""
-              HAS_GENERIC=false
+              PREFIX=$(echo "$PR_TITLE" | sed 's/: .*//')
+              DESC=$(echo "$PR_TITLE" | sed 's/^[^:]*: //')
+              # Capitalize first letter
+              DESC="$(echo "${DESC:0:1}" | tr '[:lower:]' '[:upper:]')${DESC:1}"
 
-              while IFS= read -r sha; do
-                [ -z "$sha" ] && continue
-                # Get PR title for this commit (first associated PR)
-                PR_TITLE=$(gh api "repos/${{ github.repository }}/commits/${sha}/pulls" \
-                  --jq '.[0].title // empty' 2>/dev/null || true)
-                [ -z "$PR_TITLE" ] && continue
+              case "$PREFIX" in
+                feat|fix|hotfix)
+                  FEAT_LINES="${FEAT_LINES}• ${DESC}"$'\n'
+                  ;;
+                chore|refactor|docs|test|bump)
+                  HAS_GENERIC=true
+                  ;;
+              esac
+            done <<< "$SHAS"
 
-                PREFIX=$(echo "$PR_TITLE" | sed 's/: .*//')
-                DESC=$(echo "$PR_TITLE" | sed 's/^[^:]*: //')
-                # Capitalize first letter
-                DESC="$(echo "${DESC:0:1}" | tr '[:lower:]' '[:upper:]')${DESC:1}"
+            # Deduplicate feat lines
+            FEAT_LINES=$(echo "$FEAT_LINES" | sort -u)
 
-                case "$PREFIX" in
-                  feat|fix|hotfix)
-                    FEAT_LINES="${FEAT_LINES}• ${DESC}"$'\n'
-                    ;;
-                  chore|refactor|docs|test|bump)
-                    HAS_GENERIC=true
-                    ;;
-                esac
-              done <<< "$SHAS"
-
-              # Deduplicate feat lines
-              FEAT_LINES=$(echo "$FEAT_LINES" | sort -u)
-
-              BODY=""
-              if [ -n "$FEAT_LINES" ]; then
-                BODY="${FEAT_LINES}"
-              fi
-              if [ "$HAS_GENERIC" = true ]; then
-                BODY="${BODY}• Performance improvements and minor bug fixes"$'\n'
-              fi
-
-              if [ -z "$BODY" ]; then
-                BODY="Performance improvements and minor bug fixes"
-              fi
-
-              # Write multiline value to GITHUB_ENV
-              {
-                echo "CHANGELOG<<EOF_CHANGELOG"
-                echo "$BODY"
-                echo "EOF_CHANGELOG"
-              } >> $GITHUB_ENV
+            BODY=""
+            if [ -n "$FEAT_LINES" ]; then
+              BODY="${FEAT_LINES}"
             fi
+            if [ "$HAS_GENERIC" = true ]; then
+              BODY="${BODY}• Performance improvements and minor bug fixes"$'\n'
+            fi
+
+            if [ -z "$BODY" ]; then
+              BODY="Performance improvements and minor bug fixes"
+            fi
+
+            # Write multiline value to GITHUB_ENV
+            {
+              echo "CHANGELOG<<EOF_CHANGELOG"
+              echo "$BODY"
+              echo "EOF_CHANGELOG"
+            } >> $GITHUB_ENV
           fi
 
       - name: Notify Laravel (create release record)
+        if: env.SKIP_RELEASE != 'true'
         env:
           URL: ${{ vars.BACKEND_NOTIFY_URL }}
           S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
@@ -235,7 +248,7 @@ jobs:
             --data "$BODY"
 
       - name: Create git tag
-        if: env.TAG_EXISTS == 'false'
+        if: env.SKIP_RELEASE != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
