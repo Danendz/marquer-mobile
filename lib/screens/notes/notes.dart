@@ -38,9 +38,10 @@ class _NotesPageState extends State<NotesPage> {
       appBar: AppBar(
         title: const Text("Notes"),
       ),
-      body: Center(
+      body: RefreshIndicator(
+        onRefresh: _getNotes,
         child: _loading
-            ? const CircularProgressIndicator()
+            ? const Center(child: CircularProgressIndicator())
             : NotesTiles(notes: notes, onDeleted: onDeleted),
       ),
       floatingActionButton: FloatingActionButton(
