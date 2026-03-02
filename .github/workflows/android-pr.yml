@@ -1,0 +1,42 @@
+name: Android CI (PR check)
+
+on:
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: android-pr-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create dummy .env
+        run: |
+          cat > .env << 'EOF'
+          MARQUER_API_URL=
+          AUTH_API_URL=
+          GLITCHTIP_DSN=
+          EOF
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
