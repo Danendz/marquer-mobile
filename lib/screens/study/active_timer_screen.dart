@@ -34,10 +34,10 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final timerState = ref.read(timerProvider);
       if (timerState.serverSession?.id != widget.session.id) {
-        ref.read(timerProvider.notifier).start(widget.session);
-      } else if (timerState.serverSession?.id == widget.session.id) {
+        // Session not yet loaded (app restart or first navigation without start())
         ref.read(timerProvider.notifier).loadFromSession(widget.session);
       }
+      // else: start() was already called by CreateSessionSheet — do nothing
     });
   }
 

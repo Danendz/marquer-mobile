@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:marquer/api/models/study/study_session.dart';
 import 'package:marquer/api/services/study_service.dart';
 import 'package:marquer/providers/study/study_stats_provider.dart';
 import 'package:marquer/screens/study/create_session_sheet.dart';
@@ -20,41 +21,43 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _checkActiveSession() async {
+    final sessions = <StudySession>[];
     try {
-      final sessions = await StudyService().getSessions(status: 'active');
-      if (!mounted) return;
-      if (sessions.isNotEmpty) {
-        final session = sessions.first;
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder:
-              (ctx) => AlertDialog(
-                title: const Text('Active Session'),
-                content: Text(
-                  'You have an active study session: "${session.name}". Resume it?',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(ctx).pop();
-                      // Cancel on server
-                      StudyService().cancelSession(session.id);
-                    },
-                    child: const Text('Cancel Session'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(ctx).pop();
-                      context.push('/study/active', extra: session);
-                    },
-                    child: const Text('Resume'),
-                  ),
-                ],
-              ),
-        );
-      }
+      sessions.addAll(await StudyService().getSessions(status: 'active'));
     } catch (_) {}
+    try {
+      sessions.addAll(await StudyService().getSessions(status: 'paused'));
+    } catch (_) {}
+    if (!mounted || sessions.isEmpty) return;
+    final session = sessions.first;
+    final isPaused = session.status.name == 'paused';
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (ctx) => AlertDialog(
+            title: Text(isPaused ? 'Paused Session' : 'Active Session'),
+            content: Text(
+              'You have a ${isPaused ? 'paused' : 'active'} study session: "${session.name}". Resume it?',
+            ),
+                actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    StudyService().cancelSession(session.id);
+                  },
+                  child: const Text('Cancel Session'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    context.push('/study/active', extra: session);
+                  },
+                  child: const Text('Resume'),
+                ),
+              ],
+            ),
+    );
   }
 
   String _formatDuration(int seconds) {

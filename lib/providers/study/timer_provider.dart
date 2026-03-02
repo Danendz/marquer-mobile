@@ -1,4 +1,5 @@
-import 'dart:async';
+import 'dart:async' show Future, Timer, unawaited;
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:marquer/api/models/study/timer_mode.dart';
 import 'package:marquer/api/services/study_service.dart';
 import 'package:marquer/providers/study/study_sessions_provider.dart';
 import 'package:marquer/providers/study/study_stats_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 enum TimerPhase { work, shortBreak, longBreak, idle }
@@ -105,19 +107,59 @@ final timerProvider = NotifierProvider<TimerNotifier, TimerState>(
 class TimerNotifier extends Notifier<TimerState> {
   final _service = StudyService();
   Timer? _ticker;
+  int _tickCount = 0;
+  SharedPreferences? _prefs;
+
+  Future<SharedPreferences> get _sharedPrefs async =>
+      _prefs ??= await SharedPreferences.getInstance();
+
+  void _saveLocal() {
+    final session = state.serverSession;
+    if (session == null) return;
+    unawaited(_sharedPrefs.then((prefs) {
+      prefs.setInt('timer_session_id', session.id);
+      prefs.setInt('timer_elapsed_seconds', state.elapsedSeconds);
+      prefs.setInt('timer_completed_cycles', state.completedCycles);
+    }));
+  }
+
+  void _clearLocal() {
+    unawaited(_sharedPrefs.then((prefs) {
+      prefs.remove('timer_session_id');
+      prefs.remove('timer_elapsed_seconds');
+      prefs.remove('timer_completed_cycles');
+    }));
+  }
 
   @override
   TimerState build() => TimerState(mode: TimerMode.countUp);
 
-  void loadFromSession(StudySession session) {
+  Future<void> loadFromSession(StudySession session) async {
     _ticker?.cancel();
+
+    final prefs = await _sharedPrefs;
+    final localSessionId = prefs.getInt('timer_session_id');
+    int elapsedSeconds = session.actualDurationSeconds;
+    int completedCycles = session.pomodoroCompletedCycles;
+    bool localWasNewer = false;
+
+    if (localSessionId == session.id) {
+      final localElapsed = prefs.getInt('timer_elapsed_seconds') ?? 0;
+      final localCycles = prefs.getInt('timer_completed_cycles') ?? 0;
+      if (localElapsed > elapsedSeconds || localCycles > completedCycles) {
+        localWasNewer = true;
+      }
+      elapsedSeconds = max(elapsedSeconds, localElapsed);
+      completedCycles = max(completedCycles, localCycles);
+    }
+
     state = TimerState(
       isRunning: session.status.name == 'active',
       phase: TimerPhase.work,
-      elapsedSeconds: session.actualDurationSeconds,
+      elapsedSeconds: elapsedSeconds,
       phaseElapsedSeconds: 0,
       mode: session.timerMode,
-      completedCycles: session.pomodoroCompletedCycles,
+      completedCycles: completedCycles,
       totalCycles: session.pomodoroCycles ?? 4,
       serverSession: session,
       workMinutes: session.pomodoroWorkMinutes ?? 25,
@@ -125,11 +167,23 @@ class TimerNotifier extends Notifier<TimerState> {
       longBreakMinutes: session.pomodoroLongBreakMinutes ?? 15,
       targetSeconds: session.plannedDurationSeconds,
     );
-    if (session.status.name == 'active') _startTicker();
+
+    if (localWasNewer) {
+      unawaited(_service.updateSession(session.id, {
+        'actual_duration_seconds': elapsedSeconds,
+        'pomodoro_completed_cycles': completedCycles,
+      }));
+    }
+
+    if (session.status.name == 'active') {
+      WakelockPlus.enable();
+      _startTicker();
+    }
   }
 
   Future<void> start(StudySession session) async {
     _ticker?.cancel();
+    _clearLocal();
     state = TimerState(
       isRunning: true,
       phase:
@@ -160,6 +214,7 @@ class TimerNotifier extends Notifier<TimerState> {
         await _service.updateSession(state.serverSession!.id, {
           'status': 'paused',
           'actual_duration_seconds': state.elapsedSeconds,
+          'pomodoro_completed_cycles': state.completedCycles,
         });
       } catch (e) {
         debugPrint(e.toString());
@@ -186,6 +241,7 @@ class TimerNotifier extends Notifier<TimerState> {
   Future<void> complete() async {
     _ticker?.cancel();
     WakelockPlus.disable();
+    _clearLocal();
     final session = state.serverSession;
     final elapsed = state.elapsedSeconds;
     final cycles = state.completedCycles;
@@ -210,6 +266,7 @@ class TimerNotifier extends Notifier<TimerState> {
   Future<void> cancel() async {
     _ticker?.cancel();
     WakelockPlus.disable();
+    _clearLocal();
     final session = state.serverSession;
     state = TimerState(mode: TimerMode.countUp);
     if (session != null) {
@@ -223,12 +280,28 @@ class TimerNotifier extends Notifier<TimerState> {
     }
   }
 
+  Future<void> _syncProgress() async {
+    if (state.serverSession == null) return;
+    try {
+      await _service.updateSession(state.serverSession!.id, {
+        'actual_duration_seconds': state.elapsedSeconds,
+        'pomodoro_completed_cycles': state.completedCycles,
+      });
+    } catch (_) {}
+  }
+
   void _startTicker() {
+    _tickCount = 0;
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
   }
 
   void _tick() {
     if (!state.isRunning) return;
+    _tickCount++;
+    if (_tickCount % 60 == 0 && state.serverSession != null) {
+      _syncProgress();
+    }
+    _saveLocal();
 
     if (state.mode == TimerMode.pomodoro) {
       _tickPomodoro();
