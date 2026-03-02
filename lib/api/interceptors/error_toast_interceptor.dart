@@ -1,7 +1,6 @@
 ﻿import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:marquer/stores/auth_store.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../services/toast_service.dart';
 
@@ -15,7 +14,6 @@ class ErrorToastInterceptor extends Interceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    await Sentry.captureException(err, stackTrace: err.stackTrace);
     final msg = await _toMessage(err);
     ToastService.showError(msg);
     handler.next(err);

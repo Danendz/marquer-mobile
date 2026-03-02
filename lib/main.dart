@@ -22,6 +22,20 @@ Future<void> main() async {
       options.dsn = dotenv.get('GLITCHTIP_DSN', fallback: '');
       options.tracesSampleRate = 0.01;
       options.enableAutoSessionTracking = false;
+      options.beforeSend = (event, hint) {
+        final request = event.request;
+        if (request == null) return event;
+        final rawUrl = request.url ?? '';
+        final scrubbedUrl = Uri.tryParse(rawUrl)?.replace(query: '').toString() ?? rawUrl;
+        event.request = SentryRequest(
+          url: scrubbedUrl,
+          method: request.method,
+          queryString: null,
+          headers: {},
+          data: null,
+        );
+        return event;
+      };
     },
     appRunner: () async {
       final getIt = registerSingletons();
