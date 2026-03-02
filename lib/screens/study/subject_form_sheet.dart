@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/study/study_subject.dart';
 import 'package:marquer/providers/study/study_subjects_provider.dart';
+import 'package:marquer/utils/colors.dart';
 
 const _kColors = [
   '#4285F4', '#1A73E8', '#34A853', '#0F9D58',
@@ -10,9 +11,6 @@ const _kColors = [
   '#00BCD4', '#0097A7', '#607D8B', '#455A64',
   '#E91E63', '#795548',
 ];
-
-Color _hexToColor(String hex) =>
-    Color(int.parse(hex.replaceFirst('#', 'FF'), radix: 16));
 
 void showSubjectFormSheet(BuildContext context, {StudySubject? subject}) {
   showModalBottomSheet(
@@ -190,7 +188,7 @@ class _SubjectFormSheetState extends ConsumerState<SubjectFormSheet> {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: _hexToColor(hex),
+                        color: hexToColor(hex),
                         shape: BoxShape.circle,
                         border: isSelected
                             ? Border.all(color: colorScheme.onSurface, width: 2.5)

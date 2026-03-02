@@ -4,6 +4,7 @@ import 'package:marquer/api/models/study/study_subject.dart';
 import 'package:marquer/providers/study/study_subjects_provider.dart';
 import 'package:marquer/screens/study/subject_form_sheet.dart';
 import 'package:marquer/utils/action_sheet.dart';
+import 'package:marquer/utils/colors.dart';
 
 class ManageSubjectsScreen extends ConsumerWidget {
   const ManageSubjectsScreen({super.key});
@@ -113,9 +114,7 @@ class _SubjectTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final subjectColor = Color(
-      int.parse(subject.color.replaceFirst('#', 'FF'), radix: 16),
-    );
+    final subjectColor = hexToColor(subject.color);
 
     return Container(
       decoration: BoxDecoration(

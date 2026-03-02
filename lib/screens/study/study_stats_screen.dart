@@ -1,19 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:marquer/api/models/study/study_session.dart';
+import 'package:marquer/api/models/study/study_stats.dart';
+import 'package:marquer/components/study/session_card.dart';
 import 'package:marquer/providers/study/study_stats_provider.dart';
+import 'package:marquer/utils/format.dart';
 
 class StudyStatsScreen extends ConsumerWidget {
   const StudyStatsScreen({super.key});
-
-  String _formatDuration(int seconds) {
-    final h = seconds ~/ 3600;
-    final m = (seconds % 3600) ~/ 60;
-    final s = seconds % 60;
-    if (h > 0) return '${h}h ${m}m';
-    if (m > 0) return '${m}m ${s}s';
-    return '${s}s';
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,94 +18,118 @@ class StudyStatsScreen extends ConsumerWidget {
         child: statsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Error: $e')),
-          data:
-              (stats) => Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Card(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "Today's total",
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            Text(
-                              _formatDuration(stats.todayTotalSeconds),
-                              style: Theme.of(
-                                context,
-                              ).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: stats.sessions.length,
-                      itemBuilder:
-                          (_, i) => _SessionTile(
-                            session: stats.sessions[i],
-                            formatDuration: _formatDuration,
-                          ),
-                    ),
-                  ),
-                ],
+          data: (stats) => CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(child: _SummarySection(stats: stats)),
+              const SliverToBoxAdapter(child: _SectionHeader('Recent Sessions')),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverList.separated(
+                  itemCount: stats.sessions.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (_, i) =>
+                      SessionCard(session: stats.sessions[i]),
+                ),
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _SessionTile extends StatelessWidget {
-  final StudySession session;
-  final String Function(int) formatDuration;
+class _SummarySection extends StatelessWidget {
+  final StudyStats stats;
 
-  const _SessionTile({required this.session, required this.formatDuration});
+  const _SummarySection({required this.stats});
 
   @override
   Widget build(BuildContext context) {
-    final date = DateTime.tryParse(session.startedAt);
-    return ListTile(
-      leading:
-          session.subject != null
-              ? CircleAvatar(
-                backgroundColor: Color(
-                  int.parse(
-                    session.subject!.color.replaceFirst('#', 'FF'),
-                    radix: 16,
-                  ),
-                ),
-                radius: 8,
-              )
-              : const CircleAvatar(child: Icon(Icons.timer, size: 12)),
-      title: Text(session.name),
-      subtitle: Text(session.subject?.name ?? session.timerMode.name),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Row(
         children: [
-          Text(
-            formatDuration(session.actualDurationSeconds),
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          if (date != null)
-            Text(
-              '${date.day}/${date.month}',
-              style: Theme.of(context).textTheme.bodySmall,
+          Expanded(
+            child: _StatCard(
+              icon: Icons.schedule_outlined,
+              value: formatDuration(stats.todayTotalSeconds),
+              label: "Today's Total",
             ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _StatCard(
+              icon: Icons.format_list_numbered,
+              value: '${stats.sessions.length}',
+              label: 'Sessions',
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+
+  const _StatCard({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cs.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: cs.primary),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: tt.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+
+  const _SectionHeader(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: cs.onSurfaceVariant,
+            ),
       ),
     );
   }

@@ -7,3 +7,6 @@ Color hsl(double h, double sPercent, double lPercent, {double a = 1}) {
 ColorScheme getColors(BuildContext context) {
   return Theme.of(context).colorScheme;
 }
+
+Color hexToColor(String hex) =>
+    Color(int.parse(hex.replaceFirst('#', 'FF'), radix: 16));
