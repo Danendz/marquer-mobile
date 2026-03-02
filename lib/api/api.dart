@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:marquer/api/interceptors/auth_interceptor.dart';
 import 'package:marquer/stores/auth_store.dart';
+import 'package:sentry_dio/sentry_dio.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'interceptors/error_toast_interceptor.dart';
 
 import 'models/api_response.dart';
@@ -35,7 +37,10 @@ class ApiService {
                 error: true,
                 logPrint: (obj) => debugPrint(obj.toString()),
               ),
-            ]);
+            ])
+            ..addSentry(
+              failedRequestStatusCodes: [SentryStatusCode.range(400, 599)],
+            );
 
   Future<ApiResponse<T>> get<T>(
     String path, {

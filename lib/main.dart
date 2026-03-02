@@ -11,21 +11,30 @@ import 'package:marquer/stores/auth_store.dart';
 import 'package:marquer/stores/user_store.dart';
 import 'package:marquer/utils/register_singletones.dart';
 import 'package:provider/provider.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
-  final getIt = registerSingletons();
 
-  await getIt<AuthStore>().loadFromStorage();
-
-  runApp(
-    ProviderScope(
-      child: MultiProvider(
-        providers: [ChangeNotifierProvider.value(value: getIt<UserStore>())],
-        child: MyApp(),
-      ),
-    ),
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = dotenv.get('GLITCHTIP_DSN', fallback: '');
+      options.tracesSampleRate = 0.01;
+      options.enableAutoSessionTracking = false;
+    },
+    appRunner: () async {
+      final getIt = registerSingletons();
+      await getIt<AuthStore>().loadFromStorage();
+      runApp(
+        ProviderScope(
+          child: MultiProvider(
+            providers: [ChangeNotifierProvider.value(value: getIt<UserStore>())],
+            child: MyApp(),
+          ),
+        ),
+      );
+    },
   );
 }
 
