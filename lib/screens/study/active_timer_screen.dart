@@ -20,6 +20,7 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _breathController;
   late Animation<double> _breathAnim;
+  bool _hasAutoCompleted = false;
 
   @override
   void initState() {
@@ -216,10 +217,12 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
     });
 
     // Auto-navigate when count-down completes
-    if (s.mode == TimerMode.countDown &&
+    if (!_hasAutoCompleted &&
+        s.mode == TimerMode.countDown &&
         !s.isRunning &&
         s.elapsedSeconds > 0 &&
         s.elapsedSeconds >= (s.targetSeconds ?? 0)) {
+      _hasAutoCompleted = true;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         final router = GoRouter.of(context);

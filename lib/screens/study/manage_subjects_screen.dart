@@ -22,7 +22,10 @@ class ManageSubjectsScreen extends ConsumerWidget {
         onRefresh: () => ref.refresh(studySubjectsProvider.future),
         child: subjectsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
+          error: (e, _) {
+            debugPrint('ManageSubjectsScreen error: $e');
+            return const Center(child: Text('Something went wrong'));
+          },
           data: (subjects) => GridView.builder(
             padding: const EdgeInsets.all(16),
             physics: const AlwaysScrollableScrollPhysics(),
@@ -86,11 +89,11 @@ class ManageSubjectsScreen extends ConsumerWidget {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              ref
+            onPressed: () async {
+              await ref
                   .read(studySubjectsProvider.notifier)
                   .deleteSubject(subject);
+              if (ctx.mounted) Navigator.of(ctx).pop();
             },
             child: const Text('Delete'),
           ),

@@ -8,5 +8,7 @@ ColorScheme getColors(BuildContext context) {
   return Theme.of(context).colorScheme;
 }
 
-Color hexToColor(String hex) =>
-    Color(int.parse(hex.replaceFirst('#', 'FF'), radix: 16));
+Color hexToColor(String hex) {
+  final parsed = int.tryParse(hex.replaceFirst('#', 'FF'), radix: 16);
+  return parsed != null ? Color(parsed) : Colors.black;
+}

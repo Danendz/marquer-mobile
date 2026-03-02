@@ -24,10 +24,14 @@ class _HomePageState extends ConsumerState<HomePage> {
     final sessions = <StudySession>[];
     try {
       sessions.addAll(await StudyService().getSessions(status: 'active'));
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('failed to fetch sessions status=active: $e\n$st');
+    }
     try {
       sessions.addAll(await StudyService().getSessions(status: 'paused'));
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('failed to fetch sessions status=paused: $e\n$st');
+    }
     if (!mounted || sessions.isEmpty) return;
     final session = sessions.first;
     final isPaused = session.status.name == 'paused';
@@ -42,9 +46,13 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
                 actions: [
                 TextButton(
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.of(ctx).pop();
-                    StudyService().cancelSession(session.id);
+                    try {
+                      await StudyService().cancelSession(session.id);
+                    } catch (e) {
+                      debugPrint('failed to cancel session: $e');
+                    }
                   },
                   child: const Text('Cancel Session'),
                 ),

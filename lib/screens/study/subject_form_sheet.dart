@@ -66,6 +66,11 @@ class _SubjectFormSheetState extends ConsumerState<SubjectFormSheet> {
       }
       if (!mounted) return;
       Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save: $e')),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -182,7 +187,12 @@ class _SubjectFormSheetState extends ConsumerState<SubjectFormSheet> {
                 runSpacing: 10,
                 children: _kColors.map((hex) {
                   final isSelected = _selectedColor == hex;
-                  return GestureDetector(
+                  return Semantics(
+                    label: 'Color $hex',
+                    button: true,
+                    selected: isSelected,
+                    onTapHint: isSelected ? 'Unselect color' : 'Select color',
+                    child: GestureDetector(
                     onTap: () => setState(() => _selectedColor = hex),
                     child: Container(
                       width: 36,
@@ -198,6 +208,7 @@ class _SubjectFormSheetState extends ConsumerState<SubjectFormSheet> {
                           ? const Icon(Icons.check, color: Colors.white, size: 18)
                           : null,
                     ),
+                  ),
                   );
                 }).toList(),
               ),

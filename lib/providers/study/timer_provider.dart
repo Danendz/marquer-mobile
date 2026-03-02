@@ -291,6 +291,7 @@ class TimerNotifier extends Notifier<TimerState> {
   }
 
   void _startTicker() {
+    _ticker?.cancel();
     _tickCount = 0;
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
   }
@@ -299,7 +300,7 @@ class TimerNotifier extends Notifier<TimerState> {
     if (!state.isRunning) return;
     _tickCount++;
     if (_tickCount % 60 == 0 && state.serverSession != null) {
-      _syncProgress();
+      unawaited(_syncProgress());
     }
     _saveLocal();
 
