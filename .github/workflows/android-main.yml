@@ -182,8 +182,8 @@ jobs:
               esac
             done <<< "$SHAS"
 
-            # Deduplicate feat lines
-            FEAT_LINES=$(echo "$FEAT_LINES" | sort -u)
+            # Deduplicate feat lines (order-preserving)
+            FEAT_LINES=$(echo "$FEAT_LINES" | awk '!seen[$0]++')
 
             BODY=""
             if [ -n "$FEAT_LINES" ]; then
