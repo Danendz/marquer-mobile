@@ -141,10 +141,15 @@ class _StatusChip extends StatelessWidget {
           Colors.red,
           'Cancelled',
         ),
-      _ => (
+      StudySessionStatus.paused => (
           cs.primary.withValues(alpha: 0.15),
           cs.primary,
-          status == StudySessionStatus.paused ? 'Paused' : 'Active',
+          'Paused',
+        ),
+      StudySessionStatus.active => (
+          cs.primary.withValues(alpha: 0.15),
+          cs.primary,
+          'Active',
         ),
     };
 

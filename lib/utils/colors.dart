@@ -9,6 +9,9 @@ ColorScheme getColors(BuildContext context) {
 }
 
 Color hexToColor(String hex) {
-  final parsed = int.tryParse(hex.replaceFirst('#', 'FF'), radix: 16);
+  final stripped = hex.startsWith('#') ? hex.substring(1) : hex;
+  final normalized = stripped.length == 6 ? 'FF$stripped' : stripped;
+  if (normalized.length != 8) return Colors.black;
+  final parsed = int.tryParse(normalized, radix: 16);
   return parsed != null ? Color(parsed) : Colors.black;
 }
