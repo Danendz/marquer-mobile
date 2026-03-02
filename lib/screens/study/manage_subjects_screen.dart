@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/study/study_subject.dart';
 import 'package:marquer/providers/study/study_subjects_provider.dart';
+import 'package:marquer/screens/study/subject_form_sheet.dart';
+import 'package:marquer/utils/action_sheet.dart';
 
 class ManageSubjectsScreen extends ConsumerWidget {
   const ManageSubjectsScreen({super.key});
@@ -12,7 +14,7 @@ class ManageSubjectsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Subjects')),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showSubjectDialog(context, ref, null),
+        onPressed: () => showSubjectFormSheet(context),
         child: const Icon(Icons.add),
       ),
       body: RefreshIndicator(
@@ -20,145 +22,51 @@ class ManageSubjectsScreen extends ConsumerWidget {
         child: subjectsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Error: $e')),
-          data:
-              (subjects) => ListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: subjects.length,
-                itemBuilder: (_, i) {
-                final s = subjects[i];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Color(
-                      int.parse(
-                        s.color.replaceFirst('#', 'FF'),
-                        radix: 16,
-                      ),
-                    ),
-                    child:
-                        s.isSystem
-                            ? const Icon(
-                              Icons.lock,
-                              size: 12,
-                              color: Colors.white,
-                            )
-                            : null,
-                  ),
-                  title: Text(s.name),
-                  subtitle: s.isSystem ? const Text('System subject') : null,
-                  trailing:
-                      s.isSystem
-                          ? null
-                          : Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit),
-                                onPressed:
-                                    () => _showSubjectDialog(context, ref, s),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete),
-                                onPressed:
-                                    () => _confirmDelete(context, ref, s),
-                              ),
-                            ],
-                          ),
-                );
-              },
+          data: (subjects) => GridView.builder(
+            padding: const EdgeInsets.all(16),
+            physics: const AlwaysScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.4,
             ),
+            itemCount: subjects.length,
+            itemBuilder: (_, i) {
+              final s = subjects[i];
+              return _SubjectTile(
+                subject: s,
+                onTap: s.isSystem
+                    ? null
+                    : () => showSubjectFormSheet(context, subject: s),
+                onLongPress: s.isSystem
+                    ? null
+                    : () => _showActions(context, ref, s),
+              );
+            },
           ),
         ),
+      ),
     );
   }
 
-  void _showSubjectDialog(
+  void _showActions(
     BuildContext context,
     WidgetRef ref,
-    StudySubject? existing,
-  ) {
-    final nameCtrl = TextEditingController(text: existing?.name ?? '');
-    String color = existing?.color ?? '#4285F4';
-    showDialog(
-      context: context,
-      builder:
-          (ctx) => StatefulBuilder(
-            builder:
-                (ctx, setState) => AlertDialog(
-                  title: Text(existing == null ? 'New Subject' : 'Edit Subject'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: nameCtrl,
-                        decoration: const InputDecoration(labelText: 'Name'),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        children:
-                            [
-                              '#4285F4',
-                              '#34A853',
-                              '#FBBC05',
-                              '#EA4335',
-                              '#9C27B0',
-                              '#FF9800',
-                              '#00BCD4',
-                              '#607D8B',
-                            ].map(
-                              (c) => GestureDetector(
-                                onTap: () => setState(() => color = c),
-                                child: CircleAvatar(
-                                  backgroundColor: Color(
-                                    int.parse(
-                                      c.replaceFirst('#', 'FF'),
-                                      radix: 16,
-                                    ),
-                                  ),
-                                  radius: 16,
-                                  child:
-                                      color == c
-                                          ? const Icon(
-                                            Icons.check,
-                                            color: Colors.white,
-                                            size: 16,
-                                          )
-                                          : null,
-                                ),
-                              ),
-                            ).toList(),
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (nameCtrl.text.trim().isEmpty) return;
-                        Navigator.of(ctx).pop();
-                        if (existing == null) {
-                          ref
-                              .read(studySubjectsProvider.notifier)
-                              .addSubject(nameCtrl.text.trim(), color);
-                        } else {
-                          ref
-                              .read(studySubjectsProvider.notifier)
-                              .updateSubject(
-                                existing,
-                                nameCtrl.text.trim(),
-                                color,
-                              );
-                        }
-                      },
-                      child: const Text('Save'),
-                    ),
-                  ],
-                ),
-          ),
-    );
+    StudySubject s,
+  ) async {
+    final result = await showAppActionSheet(context, [
+      AppAction(value: 'edit', icon: Icons.edit_outlined, label: 'Edit'),
+      AppAction(
+        value: 'delete',
+        icon: Icons.delete_outline,
+        label: 'Delete',
+        isDestructive: true,
+      ),
+    ]);
+    if (!context.mounted) return;
+    if (result == 'edit') showSubjectFormSheet(context, subject: s);
+    if (result == 'delete') _confirmDelete(context, ref, s);
   }
 
   void _confirmDelete(
@@ -168,26 +76,94 @@ class ManageSubjectsScreen extends ConsumerWidget {
   ) {
     showDialog(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Delete Subject?'),
-            content: Text('Delete "${subject.name}"?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancel'),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Subject?'),
+        content: Text('Delete "${subject.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              ref
+                  .read(studySubjectsProvider.notifier)
+                  .deleteSubject(subject);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SubjectTile extends StatelessWidget {
+  final StudySubject subject;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+
+  const _SubjectTile({
+    required this.subject,
+    this.onTap,
+    this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final subjectColor = Color(
+      int.parse(subject.color.replaceFirst('#', 'FF'), radix: 16),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: subjectColor.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: subjectColor.withValues(alpha: 0.3)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: subjectColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (subject.isSystem)
+                    Icon(
+                      Icons.lock_outline,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                ],
               ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  ref
-                      .read(studySubjectsProvider.notifier)
-                      .deleteSubject(subject);
-                },
-                child: const Text('Delete'),
+              const Spacer(),
+              Text(
+                subject.name,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
+        ),
+      ),
     );
   }
 }
