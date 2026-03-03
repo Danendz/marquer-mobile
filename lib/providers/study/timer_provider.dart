@@ -109,6 +109,7 @@ class TimerNotifier extends Notifier<TimerState> {
   Timer? _ticker;
   int _tickCount = 0;
   SharedPreferences? _prefs;
+  DateTime? _lastTickTime;
 
   Future<SharedPreferences> get _sharedPrefs async =>
       _prefs ??= await SharedPreferences.getInstance();
@@ -293,11 +294,13 @@ class TimerNotifier extends Notifier<TimerState> {
   void _startTicker() {
     _ticker?.cancel();
     _tickCount = 0;
+    _lastTickTime = DateTime.now();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
   }
 
   void _tick() {
     if (!state.isRunning) return;
+    _lastTickTime = DateTime.now();
     _tickCount++;
     if (_tickCount % 60 == 0 && state.serverSession != null) {
       unawaited(_syncProgress());
@@ -346,6 +349,38 @@ class TimerNotifier extends Notifier<TimerState> {
         phaseElapsedSeconds: newPhaseElapsed,
       );
     }
+  }
+
+  void recoverFromBackground() {
+    if (_lastTickTime == null || !state.isRunning) return;
+
+    final missedSeconds =
+        DateTime.now().difference(_lastTickTime!).inSeconds - 1;
+    if (missedSeconds > 1) {
+      if (state.mode == TimerMode.countDown && state.targetSeconds != null) {
+        final newElapsed =
+            (state.elapsedSeconds + missedSeconds).clamp(0, state.targetSeconds!);
+        if (newElapsed >= state.targetSeconds!) {
+          state = state.copyWith(
+            elapsedSeconds: state.targetSeconds,
+            isRunning: false,
+          );
+          _ticker?.cancel();
+          WakelockPlus.disable();
+          HapticFeedback.heavyImpact();
+          return;
+        }
+        state = state.copyWith(elapsedSeconds: newElapsed);
+      } else {
+        // countUp or pomodoro: add missed study seconds
+        state = state.copyWith(
+          elapsedSeconds: state.elapsedSeconds + missedSeconds,
+        );
+      }
+    }
+
+    _lastTickTime = DateTime.now();
+    if (state.isRunning) _startTicker();
   }
 
   void _handlePomodoroPhaseComplete() {
