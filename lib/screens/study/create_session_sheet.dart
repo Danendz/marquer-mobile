@@ -121,7 +121,14 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
                   ChoiceChip(
                     label: const Text('Custom'),
                     selected: _customCountDown,
-                    onSelected: (_) => setState(() => _customCountDown = true),
+                    onSelected: (_) => setState(() {
+                      _customCountDown = true;
+                      _countDownMinutes =
+                          (int.tryParse(_countDownCtrl.text) ?? 30).clamp(
+                            1,
+                            600,
+                          );
+                    }),
                   ),
                 ],
               ),
@@ -133,7 +140,14 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   onChanged: (v) {
                     final parsed = int.tryParse(v) ?? 1;
-                    setState(() => _countDownMinutes = parsed.clamp(1, 600));
+                    final clamped = parsed.clamp(1, 600);
+                    setState(() => _countDownMinutes = clamped);
+                    if (clamped != parsed) {
+                      _countDownCtrl.text = clamped.toString();
+                      _countDownCtrl.selection = TextSelection.fromPosition(
+                        TextPosition(offset: _countDownCtrl.text.length),
+                      );
+                    }
                   },
                   decoration: InputDecoration(
                     labelText: 'Duration',
