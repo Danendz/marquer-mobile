@@ -371,8 +371,10 @@ class TimerNotifier extends Notifier<TimerState> {
           return;
         }
         state = state.copyWith(elapsedSeconds: newElapsed);
+      } else if (state.mode == TimerMode.pomodoro) {
+        _recoverPomodoro(missedSeconds);
       } else {
-        // countUp or pomodoro: add missed study seconds
+        // countUp: add missed seconds
         state = state.copyWith(
           elapsedSeconds: state.elapsedSeconds + missedSeconds,
         );
@@ -381,6 +383,72 @@ class TimerNotifier extends Notifier<TimerState> {
 
     _lastTickTime = DateTime.now();
     if (state.isRunning) _startTicker();
+  }
+
+  void _recoverPomodoro(int missedSeconds) {
+    int remaining = missedSeconds;
+
+    while (remaining > 0 && state.isRunning) {
+      final phaseRemaining =
+          state.currentPhaseTotalSeconds - state.phaseElapsedSeconds;
+
+      if (remaining < phaseRemaining) {
+        // Still within current phase
+        final newElapsed =
+            state.phase == TimerPhase.work
+                ? state.elapsedSeconds + remaining
+                : state.elapsedSeconds;
+        state = state.copyWith(
+          elapsedSeconds: newElapsed,
+          phaseElapsedSeconds: state.phaseElapsedSeconds + remaining,
+        );
+        break;
+      } else {
+        // Current phase completes — consume it and advance
+        remaining -= phaseRemaining;
+        final newElapsed =
+            state.phase == TimerPhase.work
+                ? state.elapsedSeconds + phaseRemaining
+                : state.elapsedSeconds;
+
+        if (state.phase == TimerPhase.work) {
+          final newCycles = state.completedCycles + 1;
+          if (newCycles >= state.totalCycles) {
+            state = state.copyWith(
+              phase: TimerPhase.longBreak,
+              phaseElapsedSeconds: 0,
+              completedCycles: newCycles,
+              elapsedSeconds: newElapsed,
+            );
+          } else {
+            state = state.copyWith(
+              phase: TimerPhase.shortBreak,
+              phaseElapsedSeconds: 0,
+              completedCycles: newCycles,
+              elapsedSeconds: newElapsed,
+            );
+          }
+        } else if (state.phase == TimerPhase.longBreak &&
+            state.completedCycles >= state.totalCycles) {
+          // All cycles done
+          state = state.copyWith(
+            isRunning: false,
+            phaseElapsedSeconds: state.currentPhaseTotalSeconds,
+            elapsedSeconds: newElapsed,
+          );
+          _ticker?.cancel();
+          WakelockPlus.disable();
+          return;
+        } else {
+          // Short break (or unfinished long break) → back to work
+          state = state.copyWith(
+            phase: TimerPhase.work,
+            phaseElapsedSeconds: 0,
+            elapsedSeconds: newElapsed,
+          );
+        }
+      }
+    }
   }
 
   void _handlePomodoroPhaseComplete() {
