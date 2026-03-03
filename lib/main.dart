@@ -62,7 +62,7 @@ class MyApp extends StatelessWidget {
       title: 'Marquer',
       theme: buildTheme(themeLight),
       darkTheme: buildTheme(themeDark),
-      themeMode: ThemeMode.dark,
+      themeMode: ThemeMode.light,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

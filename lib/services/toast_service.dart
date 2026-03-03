@@ -16,4 +16,25 @@ class ToastService {
         ),
       );
   }
+
+  static void showSuccess(String message) {
+    final state = messengerKey.currentState;
+    if (state == null) return;
+
+    state
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: Text(message)),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
 }

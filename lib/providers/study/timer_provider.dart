@@ -109,6 +109,7 @@ class TimerNotifier extends Notifier<TimerState> {
   Timer? _ticker;
   int _tickCount = 0;
   SharedPreferences? _prefs;
+  DateTime? _lastTickTime;
 
   Future<SharedPreferences> get _sharedPrefs async =>
       _prefs ??= await SharedPreferences.getInstance();
@@ -293,11 +294,13 @@ class TimerNotifier extends Notifier<TimerState> {
   void _startTicker() {
     _ticker?.cancel();
     _tickCount = 0;
+    _lastTickTime = DateTime.now();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
   }
 
   void _tick() {
     if (!state.isRunning) return;
+    _lastTickTime = DateTime.now();
     _tickCount++;
     if (_tickCount % 60 == 0 && state.serverSession != null) {
       unawaited(_syncProgress());
@@ -345,6 +348,106 @@ class TimerNotifier extends Notifier<TimerState> {
         elapsedSeconds: newStudyElapsed,
         phaseElapsedSeconds: newPhaseElapsed,
       );
+    }
+  }
+
+  void recoverFromBackground() {
+    if (_lastTickTime == null || !state.isRunning) return;
+
+    final missedSeconds =
+        DateTime.now().difference(_lastTickTime!).inSeconds - 1;
+    if (missedSeconds > 1) {
+      if (state.mode == TimerMode.countDown && state.targetSeconds != null) {
+        final newElapsed =
+            (state.elapsedSeconds + missedSeconds).clamp(0, state.targetSeconds!);
+        if (newElapsed >= state.targetSeconds!) {
+          state = state.copyWith(
+            elapsedSeconds: state.targetSeconds,
+            isRunning: false,
+          );
+          _ticker?.cancel();
+          WakelockPlus.disable();
+          HapticFeedback.heavyImpact();
+          return;
+        }
+        state = state.copyWith(elapsedSeconds: newElapsed);
+      } else if (state.mode == TimerMode.pomodoro) {
+        _recoverPomodoro(missedSeconds);
+      } else {
+        // countUp: add missed seconds
+        state = state.copyWith(
+          elapsedSeconds: state.elapsedSeconds + missedSeconds,
+        );
+      }
+    }
+
+    _lastTickTime = DateTime.now();
+    if (state.isRunning) _startTicker();
+  }
+
+  void _recoverPomodoro(int missedSeconds) {
+    int remaining = missedSeconds;
+
+    while (remaining > 0 && state.isRunning) {
+      final phaseRemaining =
+          state.currentPhaseTotalSeconds - state.phaseElapsedSeconds;
+
+      if (remaining < phaseRemaining) {
+        // Still within current phase
+        final newElapsed =
+            state.phase == TimerPhase.work
+                ? state.elapsedSeconds + remaining
+                : state.elapsedSeconds;
+        state = state.copyWith(
+          elapsedSeconds: newElapsed,
+          phaseElapsedSeconds: state.phaseElapsedSeconds + remaining,
+        );
+        break;
+      } else {
+        // Current phase completes — consume it and advance
+        remaining -= phaseRemaining;
+        final newElapsed =
+            state.phase == TimerPhase.work
+                ? state.elapsedSeconds + phaseRemaining
+                : state.elapsedSeconds;
+
+        if (state.phase == TimerPhase.work) {
+          final newCycles = state.completedCycles + 1;
+          if (newCycles >= state.totalCycles) {
+            state = state.copyWith(
+              phase: TimerPhase.longBreak,
+              phaseElapsedSeconds: 0,
+              completedCycles: newCycles,
+              elapsedSeconds: newElapsed,
+            );
+          } else {
+            state = state.copyWith(
+              phase: TimerPhase.shortBreak,
+              phaseElapsedSeconds: 0,
+              completedCycles: newCycles,
+              elapsedSeconds: newElapsed,
+            );
+          }
+        } else if (state.phase == TimerPhase.longBreak &&
+            state.completedCycles >= state.totalCycles) {
+          // All cycles done
+          state = state.copyWith(
+            isRunning: false,
+            phaseElapsedSeconds: state.currentPhaseTotalSeconds,
+            elapsedSeconds: newElapsed,
+          );
+          _ticker?.cancel();
+          WakelockPlus.disable();
+          return;
+        } else {
+          // Short break (or unfinished long break) → back to work
+          state = state.copyWith(
+            phase: TimerPhase.work,
+            phaseElapsedSeconds: 0,
+            elapsedSeconds: newElapsed,
+          );
+        }
+      }
     }
   }
 

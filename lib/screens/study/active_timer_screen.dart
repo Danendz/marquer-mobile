@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/study/study_session.dart';
@@ -17,14 +18,35 @@ class ActiveTimerScreen extends ConsumerStatefulWidget {
 }
 
 class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _breathController;
   late Animation<double> _breathAnim;
+  late AnimationController _progressController;
+  late Animation<double> _progressCurve;
+  double _progressStart = 0.0;
+  double _progressEnd = 0.0;
   bool _hasAutoCompleted = false;
+  String? _bgAsset;
+
+  double _computeProgress(TimerState s) {
+    if (s.mode == TimerMode.countDown &&
+        s.targetSeconds != null &&
+        s.targetSeconds! > 0) {
+      return (s.elapsedSeconds / s.targetSeconds!).clamp(0.0, 1.0);
+    }
+    if (s.mode == TimerMode.pomodoro && s.currentPhaseTotalSeconds > 0) {
+      return (s.phaseElapsedSeconds / s.currentPhaseTotalSeconds).clamp(
+        0.0,
+        1.0,
+      );
+    }
+    return 0.0;
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _breathController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
@@ -32,6 +54,15 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
     _breathAnim = Tween<double>(begin: 1.0, end: 1.03).animate(
       CurvedAnimation(parent: _breathController, curve: Curves.easeInOut),
     );
+    _progressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 950),
+    );
+    _progressCurve = CurvedAnimation(
+      parent: _progressController,
+      curve: Curves.easeOut,
+    );
+    _loadBgAsset();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final timerState = ref.read(timerProvider);
       if (timerState.serverSession?.id != widget.session.id) {
@@ -42,10 +73,37 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
     });
   }
 
+  Future<void> _loadBgAsset() async {
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    final assets = manifest.listAssets()
+        .where((k) => k.startsWith('assets/timer_bg/'))
+        .toList();
+    if (mounted && assets.isNotEmpty) {
+      setState(() => _bgAsset = assets[math.Random().nextInt(assets.length)]);
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _breathController.dispose();
+    _progressController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _breathController.stop();
+    } else if (state == AppLifecycleState.resumed) {
+      final timerState = ref.read(timerProvider);
+      if (timerState.isRunning) {
+        _breathController.reset();
+        _breathController.repeat(reverse: true);
+      }
+      ref.read(timerProvider.notifier).recoverFromBackground();
+    }
   }
 
   String _formatTime(int seconds) {
@@ -131,6 +189,13 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
                 color: labelColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    blurRadius: 6,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
             ),
           ],
@@ -140,25 +205,18 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
   }
 
   Widget _buildProgressRing(TimerState s) {
-    double progress = 0.0;
-    if (s.mode == TimerMode.countDown &&
-        s.targetSeconds != null &&
-        s.targetSeconds! > 0) {
-      progress = s.elapsedSeconds / s.targetSeconds!;
-    } else if (s.mode == TimerMode.pomodoro &&
-        s.currentPhaseTotalSeconds > 0) {
-      progress = s.phaseElapsedSeconds / s.currentPhaseTotalSeconds;
-    }
-    progress = progress.clamp(0.0, 1.0);
-
     final timeText = s.mode == TimerMode.countUp
         ? _formatTime(s.elapsedSeconds)
         : _formatTime(s.remainingSeconds);
 
     return AnimatedBuilder(
-      animation: _breathAnim,
+      animation: Listenable.merge([_breathAnim, _progressCurve]),
       builder: (context, _) {
         final scale = s.isRunning ? _breathAnim.value : 1.0;
+        final progress =
+            (_progressStart +
+                (_progressEnd - _progressStart) * _progressCurve.value)
+            .clamp(0.0, 1.0);
         return Transform.scale(
           scale: scale,
           child: SizedBox(
@@ -203,6 +261,33 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
     final s = ref.watch(timerProvider);
     final notifier = ref.read(timerProvider.notifier);
 
+    // Snap progress to correct value when session first loads
+    ref.listen(timerProvider.select((ts) => ts.serverSession?.id), (prev, next) {
+      if (prev != next) {
+        final p = _computeProgress(ref.read(timerProvider));
+        _progressStart = p;
+        _progressEnd = p;
+        _progressController.value = 1.0;
+      }
+    });
+
+    // Animate progress ring on each tick
+    ref.listen(
+      timerProvider.select((ts) {
+        if (ts.mode == TimerMode.pomodoro) return ts.phaseElapsedSeconds;
+        return ts.elapsedSeconds;
+      }),
+      (prev, next) {
+        if (prev == next) return;
+        // Capture current animated position as the new start
+        _progressStart =
+            _progressStart +
+            (_progressEnd - _progressStart) * _progressCurve.value;
+        _progressEnd = _computeProgress(ref.read(timerProvider));
+        _progressController.forward(from: 0.0);
+      },
+    );
+
     // Sync breathing animation with running state
     ref.listen(timerProvider.select((ts) => ts.isRunning), (_, isRunning) {
       if (isRunning && !_breathController.isAnimating) {
@@ -216,23 +301,39 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
       }
     });
 
-    // Auto-navigate when count-down completes
+    // Show completion dialog when count-down finishes
     if (!_hasAutoCompleted &&
         s.mode == TimerMode.countDown &&
         !s.isRunning &&
         s.elapsedSeconds > 0 &&
         s.elapsedSeconds >= (s.targetSeconds ?? 0)) {
       _hasAutoCompleted = true;
+      final elapsed = s.elapsedSeconds;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         final router = GoRouter.of(context);
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (ctx) => AlertDialog(
+                title: const Text('Session Complete!'),
+                content: Text(
+                  'Great work! You studied for ${_formatTime(elapsed)}.',
+                ),
+                actions: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Done'),
+                  ),
+                ],
+              ),
+        );
+        if (!mounted) return;
         await notifier.complete();
         if (mounted) router.go('/');
       });
     }
-
-    final sessionId = widget.session.id;
-    final bgUrl = 'https://picsum.photos/seed/$sessionId/800/1600?blur=3';
 
     return PopScope(
       canPop: false,
@@ -240,28 +341,26 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
         fit: StackFit.expand,
         children: [
           // Background image
-          Image.network(
-            bgUrl,
-            fit: BoxFit.cover,
-            errorBuilder:
-                (context, error, stackTrace) => Container(
-                  decoration: const BoxDecoration(
-                    gradient: RadialGradient(
-                      colors: [Color(0xFF1a1a2e), Color(0xFF0a0a0a)],
-                      radius: 1.2,
-                    ),
-                  ),
+          if (_bgAsset != null)
+            Image.asset(_bgAsset!, fit: BoxFit.cover)
+          else
+            Container(
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [Color(0xFF2e2e50), Color(0xFF181828)],
+                  radius: 1.2,
                 ),
-          ),
-          // Dark gradient overlay
+              ),
+            ),
+          // Overlay
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0x99000000), // ~60% black at top
-                  Color(0xCC000000), // ~80% black at bottom
+                  Color(0x55000000), // ~33% black at top
+                  Color(0x88000000), // ~53% black at bottom
                 ],
               ),
             ),

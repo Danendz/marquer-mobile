@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:marquer/utils/colors.dart';
 
 class AppAction {
   final String value;
@@ -33,11 +32,11 @@ class _AppActionSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = getColors(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.surfaceContainer,
+        color: colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
@@ -49,12 +48,12 @@ class _AppActionSheet extends StatelessWidget {
               height: 4,
               margin: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
-                color: colors.onSurface.withValues(alpha: 0.25),
+                color: colorScheme.onSurface.withValues(alpha: 0.25),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             ...actions.map((action) {
-              final color = action.isDestructive ? Colors.red : colors.onSurface;
+              final color = action.isDestructive ? Colors.red : colorScheme.onSurface;
               return InkWell(
                 onTap: () => Navigator.pop(context, action.value),
                 child: Padding(

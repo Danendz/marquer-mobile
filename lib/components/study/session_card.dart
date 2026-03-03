@@ -19,10 +19,10 @@ class SessionCard extends StatelessWidget {
 
     final bgColor = subjectColor != null
         ? subjectColor.withValues(alpha: 0.15)
-        : cs.onSurface.withValues(alpha: 0.06);
+        : cs.surface;
     final borderColor = subjectColor != null
         ? subjectColor.withValues(alpha: 0.3)
-        : cs.onSurface.withValues(alpha: 0.12);
+        : cs.outline;
 
     final date = DateTime.tryParse(session.startedAt);
     final now = DateTime.now();
