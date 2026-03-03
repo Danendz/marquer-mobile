@@ -68,6 +68,13 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  int _gridColumns(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width - 32;
+    if (width >= 900) return 4;
+    if (width >= 600) return 3;
+    return 2;
+  }
+
   String _formatDuration(int seconds) {
     if (seconds < 60) return '${seconds}s';
     final h = seconds ~/ 3600;
@@ -134,7 +141,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             Expanded(
               child: GridView.count(
                 physics: const AlwaysScrollableScrollPhysics(),
-                crossAxisCount: 2,
+                crossAxisCount: _gridColumns(context),
+                childAspectRatio: 1.1,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
                 children: [
@@ -197,23 +205,41 @@ class _Tile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surface,
+        border: Border.all(color: cs.outline),
+        borderRadius: BorderRadius.circular(16),
+      ),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 48, color: color),
-              const SizedBox(height: 12),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-            ],
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, size: 24, color: color),
+                ),
+                Text(
+                  label,
+                  style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
           ),
         ),
       ),
