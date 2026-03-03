@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/study/store_study_session_request.dart';
@@ -18,9 +19,11 @@ class CreateSessionSheet extends ConsumerStatefulWidget {
 
 class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
   final _nameCtrl = TextEditingController();
+  final _countDownCtrl = TextEditingController(text: '30');
   TimerMode _mode = TimerMode.countUp;
   StudySubject? _subject;
   int _countDownMinutes = 30;
+  bool _customCountDown = false;
   bool _loading = false;
 
   int _workMinutes = 25;
@@ -43,6 +46,7 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _countDownCtrl.dispose();
     super.dispose();
   }
 
@@ -85,7 +89,7 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
     }
   }
 
-  Widget _buildModeConfig(ColorScheme colorScheme) {
+  Widget _buildModeConfig(ColorScheme colorScheme, OutlineInputBorder inputBorder) {
     switch (_mode) {
       case TimerMode.countDown:
         return Padding(
@@ -103,18 +107,48 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
-                children:
-                    [30, 60, 90, 120]
-                        .map(
-                          (m) => ChoiceChip(
-                            label: Text('${m}m'),
-                            selected: _countDownMinutes == m,
-                            onSelected:
-                                (_) => setState(() => _countDownMinutes = m),
-                          ),
-                        )
-                        .toList(),
+                children: [
+                  ...[30, 60, 90, 120].map(
+                    (m) => ChoiceChip(
+                      label: Text('${m}m'),
+                      selected: !_customCountDown && _countDownMinutes == m,
+                      onSelected: (_) => setState(() {
+                        _customCountDown = false;
+                        _countDownMinutes = m;
+                      }),
+                    ),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Custom'),
+                    selected: _customCountDown,
+                    onSelected: (_) => setState(() => _customCountDown = true),
+                  ),
+                ],
               ),
+              if (_customCountDown) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _countDownCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onChanged: (v) {
+                    final parsed = int.tryParse(v) ?? 1;
+                    setState(() => _countDownMinutes = parsed.clamp(1, 600));
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'Duration',
+                    filled: true,
+                    fillColor: colorScheme.surface,
+                    border: inputBorder,
+                    enabledBorder: inputBorder,
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
+                    ),
+                    suffixText: 'min',
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -124,7 +158,7 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
           padding: const EdgeInsets.only(top: 16),
           child: Container(
             decoration: BoxDecoration(
-              color: colorScheme.onSurface.withValues(alpha: 0.06),
+              color: colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -185,7 +219,7 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final subjects = ref.watch(studySubjectsProvider).asData?.value ?? [];
-    final inputFill = colorScheme.onSurface.withValues(alpha: 0.06);
+    final inputFill = colorScheme.surface;
     final inputBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
       borderSide: BorderSide.none,
@@ -314,6 +348,20 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
               SegmentedButton<TimerMode>(
                 selected: {_mode},
                 onSelectionChanged: (v) => setState(() => _mode = v.first),
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return colorScheme.primary;
+                    }
+                    return Colors.transparent;
+                  }),
+                  foregroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return colorScheme.onPrimary;
+                    }
+                    return colorScheme.onSurface;
+                  }),
+                ),
                 segments: const [
                   ButtonSegment(
                     value: TimerMode.countUp,
@@ -352,7 +400,7 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
                       child: child,
                     ),
                   ),
-                  child: _buildModeConfig(colorScheme),
+                  child: _buildModeConfig(colorScheme, inputBorder),
                 ),
               ),
 

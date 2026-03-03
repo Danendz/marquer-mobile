@@ -39,7 +39,10 @@ class ApiService {
               ),
             ])
             ..addSentry(
-              failedRequestStatusCodes: [SentryStatusCode.range(400, 599)],
+              failedRequestStatusCodes: [
+                SentryStatusCode(400),
+                SentryStatusCode.range(402, 599),
+              ],
             );
 
   Future<ApiResponse<T>> get<T>(
