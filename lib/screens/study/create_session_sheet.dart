@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/study/store_study_session_request.dart';
 import 'package:marquer/api/models/study/study_subject.dart';
 import 'package:marquer/api/models/study/timer_mode.dart';
 import 'package:marquer/api/services/study_service.dart';
 import 'package:marquer/providers/study/study_settings_provider.dart';
 import 'package:marquer/providers/study/study_subjects_provider.dart';
-import 'package:marquer/providers/study/timer_provider.dart';
 
 class CreateSessionSheet extends ConsumerStatefulWidget {
   const CreateSessionSheet({super.key});
@@ -76,9 +74,7 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
         ),
       );
       if (!mounted) return;
-      Navigator.of(context).pop();
-      ref.read(timerProvider.notifier).start(session);
-      context.push('/study/active', extra: session);
+      Navigator.of(context).pop(session);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(

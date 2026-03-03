@@ -9,12 +9,14 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:marquer/services/toast_service.dart';
 import 'package:marquer/stores/auth_store.dart';
 import 'package:marquer/stores/user_store.dart';
+import 'package:marquer/services/foreground_timer_service.dart';
 import 'package:marquer/utils/register_singletones.dart';
 import 'package:provider/provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  initForegroundService();
   await dotenv.load(fileName: ".env");
 
   await SentryFlutter.init(
@@ -52,12 +54,18 @@ Future<void> main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late final _router = createRouter();
+
+  @override
   Widget build(BuildContext context) {
-    final router = createRouter();
     return MaterialApp.router(
       title: 'Marquer',
       theme: buildTheme(themeLight),
@@ -70,7 +78,7 @@ class MyApp extends StatelessWidget {
         FlutterQuillLocalizations.delegate,
       ],
       supportedLocales: const [Locale('en'), Locale('fr'), Locale('zh', 'CN')],
-      routerConfig: router,
+      routerConfig: _router,
       scaffoldMessengerKey: ToastService.messengerKey,
       builder: (context, child) {
         return GlobalManager(

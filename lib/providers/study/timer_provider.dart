@@ -2,6 +2,7 @@ import 'dart:async' show Future, Timer, unawaited;
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/study/complete_study_session_request.dart';
 import 'package:marquer/api/models/study/study_session.dart';
@@ -9,6 +10,7 @@ import 'package:marquer/api/models/study/timer_mode.dart';
 import 'package:marquer/api/services/study_service.dart';
 import 'package:marquer/providers/study/study_sessions_provider.dart';
 import 'package:marquer/providers/study/study_stats_provider.dart';
+import 'package:marquer/services/foreground_timer_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -114,6 +116,84 @@ class TimerNotifier extends Notifier<TimerState> {
   Future<SharedPreferences> get _sharedPrefs async =>
       _prefs ??= await SharedPreferences.getInstance();
 
+  String _formatTime(int seconds) {
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    if (h > 0) {
+      return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    }
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _saveBgState() {
+    String modeStr;
+    switch (state.mode) {
+      case TimerMode.countUp:
+        modeStr = 'countUp';
+        break;
+      case TimerMode.countDown:
+        modeStr = 'countDown';
+        break;
+      case TimerMode.pomodoro:
+        modeStr = 'pomodoro';
+        break;
+    }
+
+    String? phaseStr;
+    if (state.mode == TimerMode.pomodoro) {
+      switch (state.phase) {
+        case TimerPhase.work:
+          phaseStr = 'work';
+          break;
+        case TimerPhase.shortBreak:
+          phaseStr = 'shortBreak';
+          break;
+        case TimerPhase.longBreak:
+          phaseStr = 'longBreak';
+          break;
+        case TimerPhase.idle:
+          phaseStr = 'work';
+          break;
+      }
+    }
+
+    return saveTimerBgState(
+      mode: modeStr,
+      elapsedSeconds: state.elapsedSeconds,
+      paused: !state.isRunning,
+      targetSeconds: state.targetSeconds,
+      phase: phaseStr,
+      phaseElapsedSeconds:
+          state.mode == TimerMode.pomodoro ? state.phaseElapsedSeconds : null,
+      phaseTotalSeconds:
+          state.mode == TimerMode.pomodoro
+              ? state.currentPhaseTotalSeconds
+              : null,
+    );
+  }
+
+  String _notificationText() {
+    switch (state.mode) {
+      case TimerMode.countUp:
+        return 'Studying: ${_formatTime(state.elapsedSeconds)}';
+      case TimerMode.countDown:
+        return 'Time remaining: ${_formatTime(state.remainingSeconds)}';
+      case TimerMode.pomodoro:
+        final timeText = _formatTime(state.remainingSeconds);
+        switch (state.phase) {
+          case TimerPhase.work:
+            return 'Work \u2014 $timeText remaining';
+          case TimerPhase.shortBreak:
+            return 'Short Break \u2014 $timeText';
+          case TimerPhase.longBreak:
+            return 'Long Break \u2014 $timeText';
+          case TimerPhase.idle:
+            return 'Studying: ${_formatTime(state.elapsedSeconds)}';
+        }
+    }
+  }
+
   void _saveLocal() {
     final session = state.serverSession;
     if (session == null) return;
@@ -154,6 +234,24 @@ class TimerNotifier extends Notifier<TimerState> {
       completedCycles = max(completedCycles, localCycles);
     }
 
+    // Recover elapsed time accumulated by the background foreground service
+    // (handles the case where the app was killed but the service kept running).
+    final bgPaused =
+        await FlutterForegroundTask.getData<bool>(key: 'bg_paused') ?? true;
+    if (!bgPaused) {
+      final virtualStartMs = await FlutterForegroundTask.getData<int>(
+        key: 'bg_virtual_start_ms',
+      );
+      if (virtualStartMs != null) {
+        final bgElapsed =
+            (DateTime.now().millisecondsSinceEpoch - virtualStartMs) ~/ 1000;
+        if (bgElapsed > elapsedSeconds) {
+          elapsedSeconds = bgElapsed;
+          localWasNewer = true;
+        }
+      }
+    }
+
     state = TimerState(
       isRunning: session.status.name == 'active',
       phase: TimerPhase.work,
@@ -179,6 +277,8 @@ class TimerNotifier extends Notifier<TimerState> {
     if (session.status.name == 'active') {
       WakelockPlus.enable();
       _startTicker();
+      unawaited(_saveBgState());
+      unawaited(startTimerForegroundService(_notificationText()));
     }
   }
 
@@ -204,12 +304,16 @@ class TimerNotifier extends Notifier<TimerState> {
     );
     WakelockPlus.enable();
     _startTicker();
+    unawaited(_saveBgState());
+    unawaited(startTimerForegroundService(_notificationText()));
   }
 
   Future<void> pause() async {
     _ticker?.cancel();
     state = state.copyWith(isRunning: false);
     WakelockPlus.disable();
+    unawaited(clearTimerBgState());
+    unawaited(stopTimerForegroundService());
     if (state.serverSession != null) {
       try {
         await _service.updateSession(state.serverSession!.id, {
@@ -227,6 +331,8 @@ class TimerNotifier extends Notifier<TimerState> {
     state = state.copyWith(isRunning: true);
     WakelockPlus.enable();
     _startTicker();
+    unawaited(_saveBgState());
+    unawaited(startTimerForegroundService(_notificationText()));
     if (state.serverSession != null) {
       try {
         await _service.updateSession(
@@ -242,6 +348,8 @@ class TimerNotifier extends Notifier<TimerState> {
   Future<void> complete() async {
     _ticker?.cancel();
     WakelockPlus.disable();
+    unawaited(clearTimerBgState());
+    unawaited(stopTimerForegroundService());
     _clearLocal();
     final session = state.serverSession;
     final elapsed = state.elapsedSeconds;
@@ -267,6 +375,8 @@ class TimerNotifier extends Notifier<TimerState> {
   Future<void> cancel() async {
     _ticker?.cancel();
     WakelockPlus.disable();
+    unawaited(clearTimerBgState());
+    unawaited(stopTimerForegroundService());
     _clearLocal();
     final session = state.serverSession;
     state = TimerState(mode: TimerMode.countUp);
@@ -289,6 +399,13 @@ class TimerNotifier extends Notifier<TimerState> {
         'pomodoro_completed_cycles': state.completedCycles,
       });
     } catch (_) {}
+  }
+
+  /// Pauses the Dart ticker without changing isRunning state.
+  /// Used when the Activity is destroyed (detached) but the process is kept
+  /// alive by the foreground service. recoverFromBackground() restores it.
+  void pauseTicker() {
+    _ticker?.cancel();
   }
 
   void _startTicker() {
@@ -327,6 +444,7 @@ class TimerNotifier extends Notifier<TimerState> {
       }
       state = state.copyWith(elapsedSeconds: newElapsed);
     }
+    unawaited(updateTimerNotification(_notificationText()));
   }
 
   void _tickPomodoro() {
@@ -382,7 +500,7 @@ class TimerNotifier extends Notifier<TimerState> {
     }
 
     _lastTickTime = DateTime.now();
-    if (state.isRunning) _startTicker();
+    if (state.isRunning && !(_ticker?.isActive ?? false)) _startTicker();
   }
 
   void _recoverPomodoro(int missedSeconds) {
@@ -471,6 +589,7 @@ class TimerNotifier extends Notifier<TimerState> {
           elapsedSeconds: state.elapsedSeconds + 1,
         );
       }
+      unawaited(_saveBgState());
     } else {
       // Break complete → back to work
       // If long break completed, could auto-complete session
@@ -483,8 +602,10 @@ class TimerNotifier extends Notifier<TimerState> {
         );
         _ticker?.cancel();
         WakelockPlus.disable();
+        unawaited(clearTimerBgState());
       } else {
         state = state.copyWith(phase: TimerPhase.work, phaseElapsedSeconds: 0);
+        unawaited(_saveBgState());
       }
     }
   }

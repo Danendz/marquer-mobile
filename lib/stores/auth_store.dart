@@ -30,12 +30,10 @@ class AuthStore extends ChangeNotifier {
     try {
       await userStore.fetchMe();
       _status = AuthStatus.authenticated;
+      notifyListeners();
     } catch (e) {
       await logout();
     }
-
-    _status = AuthStatus.authenticated;
-    notifyListeners();
   }
 
   Future<void> setToken(String token) async {

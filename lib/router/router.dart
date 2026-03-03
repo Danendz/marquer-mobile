@@ -57,7 +57,7 @@ GoRouter createRouter() {
       GoRoute(
         path: '/study/active',
         builder: (context, state) {
-          final session = state.extra as StudySession;
+          final session = state.extra as StudySession?;
           return ActiveTimerScreen(session: session);
         },
       ),
