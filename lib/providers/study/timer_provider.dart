@@ -395,7 +395,7 @@ class TimerNotifier extends Notifier<TimerState> {
     }
 
     state = TimerState(
-      isRunning: session.status.name == 'active',
+      isRunning: session.status.name == 'active' && !bgPaused,
       phase: restoredPhase,
       elapsedSeconds: elapsedSeconds,
       phaseElapsedSeconds: phaseElapsedSeconds,
@@ -446,7 +446,7 @@ class TimerNotifier extends Notifier<TimerState> {
       return;
     }
 
-    if (session.status.name == 'active') {
+    if (session.status.name == 'active' && !bgPaused) {
       WakelockPlus.enable();
       _startTicker();
       unawaited(_saveBgState());

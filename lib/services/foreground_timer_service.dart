@@ -146,12 +146,28 @@ class TimerTaskHandler extends TaskHandler {
   Future<void> _handleButtonPress(String id) async {
     if (id == 'btn_pause') {
       final nowMs = DateTime.now().millisecondsSinceEpoch;
-      final virtualStartMs =
-          await FlutterForegroundTask.getData<int>(
-            key: 'bg_virtual_start_ms',
-          ) ??
-          nowMs;
-      final elapsed = (nowMs - virtualStartMs) ~/ 1000;
+      final mode =
+          await FlutterForegroundTask.getData<String>(key: 'bg_mode') ??
+          'countUp';
+      final bgPhase =
+          await FlutterForegroundTask.getData<String>(key: 'bg_phase');
+      final isInBreak = mode == 'pomodoro' &&
+          (bgPhase == 'shortBreak' || bgPhase == 'longBreak');
+      int elapsed;
+      if (isInBreak) {
+        elapsed =
+            await FlutterForegroundTask.getData<int>(
+              key: 'bg_study_elapsed_s',
+            ) ??
+            0;
+      } else {
+        final virtualStartMs =
+            await FlutterForegroundTask.getData<int>(
+              key: 'bg_virtual_start_ms',
+            ) ??
+            nowMs;
+        elapsed = (nowMs - virtualStartMs) ~/ 1000;
+      }
       await FlutterForegroundTask.saveData(
         key: 'bg_elapsed_snapshot_s',
         value: elapsed,
@@ -194,12 +210,27 @@ class TimerTaskHandler extends TaskHandler {
             ) ??
             0;
       } else {
-        final virtualStartMs =
-            await FlutterForegroundTask.getData<int>(
-              key: 'bg_virtual_start_ms',
-            ) ??
-            nowMs;
-        elapsed = (nowMs - virtualStartMs) ~/ 1000;
+        final mode =
+            await FlutterForegroundTask.getData<String>(key: 'bg_mode') ??
+            'countUp';
+        final bgPhase =
+            await FlutterForegroundTask.getData<String>(key: 'bg_phase');
+        final isInBreak = mode == 'pomodoro' &&
+            (bgPhase == 'shortBreak' || bgPhase == 'longBreak');
+        if (isInBreak) {
+          elapsed =
+              await FlutterForegroundTask.getData<int>(
+                key: 'bg_study_elapsed_s',
+              ) ??
+              0;
+        } else {
+          final virtualStartMs =
+              await FlutterForegroundTask.getData<int>(
+                key: 'bg_virtual_start_ms',
+              ) ??
+              nowMs;
+          elapsed = (nowMs - virtualStartMs) ~/ 1000;
+        }
         await FlutterForegroundTask.saveData(
           key: 'bg_elapsed_snapshot_s',
           value: elapsed,
@@ -256,6 +287,8 @@ Future<void> saveTimerBgState({
   if (phase != null) {
     await FlutterForegroundTask.saveData(key: 'bg_phase', value: phase);
   }
+  // Snapshot of pure study elapsed (unchanged during pomodoro breaks).
+  await FlutterForegroundTask.saveData(key: 'bg_study_elapsed_s', value: elapsedSeconds);
   // Reset one-shot flags so a new/resumed session doesn't inherit stale state.
   await FlutterForegroundTask.saveData(key: 'bg_stop_requested', value: false);
   await FlutterForegroundTask.saveData(key: 'bg_countdown_completed', value: false);

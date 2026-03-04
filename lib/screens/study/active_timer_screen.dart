@@ -66,6 +66,7 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
     );
     _loadBgAsset();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       if (widget.session != null) {
         final timerState = ref.read(timerProvider);
         if (timerState.serverSession?.id != widget.session!.id) {
