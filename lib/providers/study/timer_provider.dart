@@ -31,6 +31,7 @@ class TimerState {
   final int longBreakMinutes;
   // Count-down
   final int? targetSeconds;
+  final bool stopRequested;
 
   TimerState({
     this.isRunning = false,
@@ -45,6 +46,7 @@ class TimerState {
     this.shortBreakMinutes = 5,
     this.longBreakMinutes = 15,
     this.targetSeconds,
+    this.stopRequested = false,
   });
 
   int get currentPhaseTotalSeconds {
@@ -86,6 +88,7 @@ class TimerState {
     int? shortBreakMinutes,
     int? longBreakMinutes,
     int? targetSeconds,
+    bool? stopRequested,
   }) => TimerState(
     isRunning: isRunning ?? this.isRunning,
     phase: phase ?? this.phase,
@@ -99,6 +102,7 @@ class TimerState {
     shortBreakMinutes: shortBreakMinutes ?? this.shortBreakMinutes,
     longBreakMinutes: longBreakMinutes ?? this.longBreakMinutes,
     targetSeconds: targetSeconds ?? this.targetSeconds,
+    stopRequested: stopRequested ?? this.stopRequested,
   );
 }
 
@@ -192,7 +196,19 @@ class TimerNotifier extends Notifier<TimerState> {
         _resumeFromBg(elapsed);
         break;
       case 'stop':
-        complete();
+        _pauseFromBg(elapsed);
+        state = state.copyWith(stopRequested: true);
+        FlutterForegroundTask.launchApp('/study/active');
+        break;
+      case 'countdown_complete':
+        _ticker?.cancel();
+        WakelockPlus.disable();
+        if (elapsed != null) {
+          state = state.copyWith(
+            elapsedSeconds: elapsed,
+            isRunning: false,
+          );
+        }
         break;
     }
   }
@@ -329,6 +345,16 @@ class TimerNotifier extends Notifier<TimerState> {
       }
     }
 
+    // When stop was requested from notification, bg_elapsed_snapshot_s has the
+    // most accurate elapsed time (saved at the moment Stop was pressed).
+    final bgSnapshot = await FlutterForegroundTask.getData<int>(
+      key: 'bg_elapsed_snapshot_s',
+    );
+    if (bgSnapshot != null && bgSnapshot > elapsedSeconds) {
+      elapsedSeconds = bgSnapshot;
+      localWasNewer = true;
+    }
+
     state = TimerState(
       isRunning: session.status.name == 'active',
       phase: TimerPhase.work,
@@ -352,7 +378,7 @@ class TimerNotifier extends Notifier<TimerState> {
     }
 
     // If stop was tapped from the notification while the app was killed,
-    // auto-complete the session now that the app has reopened.
+    // show the confirmation dialog now that the app has reopened.
     final bgStopRequested =
         await FlutterForegroundTask.getData<bool>(
           key: 'bg_stop_requested',
@@ -363,7 +389,21 @@ class TimerNotifier extends Notifier<TimerState> {
         key: 'bg_stop_requested',
         value: false,
       );
-      unawaited(complete());
+      state = state.copyWith(isRunning: false, stopRequested: true);
+      return;
+    }
+
+    final bgCountdownCompleted =
+        await FlutterForegroundTask.getData<bool>(
+          key: 'bg_countdown_completed',
+        ) ??
+        false;
+    if (bgCountdownCompleted) {
+      await FlutterForegroundTask.saveData(
+        key: 'bg_countdown_completed',
+        value: false,
+      );
+      state = state.copyWith(isRunning: false);
       return;
     }
 
@@ -483,6 +523,11 @@ class TimerNotifier extends Notifier<TimerState> {
         debugPrint(e.toString());
       }
     }
+  }
+
+  void clearStopRequest() {
+    state = state.copyWith(stopRequested: false);
+    unawaited(updateTimerNotification(_pausedNotificationText(), paused: true));
   }
 
   Future<void> _syncProgress() async {

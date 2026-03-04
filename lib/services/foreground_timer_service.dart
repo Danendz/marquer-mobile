@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 // Top-level so it's accessible from both main and background isolates.
@@ -75,6 +77,18 @@ class TimerTaskHandler extends TaskHandler {
           await FlutterForegroundTask.getData<int>(key: 'bg_target_s') ?? 0;
       final elapsed = (nowMs - virtualStartMs) ~/ 1000;
       final remaining = (targetS - elapsed).clamp(0, targetS);
+      if (remaining <= 0) {
+        await FlutterForegroundTask.updateService(
+          notificationTitle: 'Study Timer',
+          notificationText: 'Session complete!',
+          notificationButtons: [],
+        );
+        await FlutterForegroundTask.saveData(key: 'bg_paused', value: true);
+        await FlutterForegroundTask.saveData(key: 'bg_countdown_completed', value: true);
+        await FlutterForegroundTask.saveData(key: 'bg_elapsed_snapshot_s', value: targetS);
+        FlutterForegroundTask.sendDataToMain({'action': 'countdown_complete', 'elapsed': targetS});
+        return;
+      }
       text = 'Time remaining: ${_fmtTime(remaining)}';
     } else if (mode == 'pomodoro') {
       final phase =
@@ -169,6 +183,28 @@ class TimerTaskHandler extends TaskHandler {
       );
       FlutterForegroundTask.sendDataToMain({'action': 'resume', 'elapsed': snapshot});
     } else if (id == 'btn_stop') {
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final alreadyPaused =
+          await FlutterForegroundTask.getData<bool>(key: 'bg_paused') ?? false;
+      int elapsed;
+      if (alreadyPaused) {
+        elapsed =
+            await FlutterForegroundTask.getData<int>(
+              key: 'bg_elapsed_snapshot_s',
+            ) ??
+            0;
+      } else {
+        final virtualStartMs =
+            await FlutterForegroundTask.getData<int>(
+              key: 'bg_virtual_start_ms',
+            ) ??
+            nowMs;
+        elapsed = (nowMs - virtualStartMs) ~/ 1000;
+        await FlutterForegroundTask.saveData(
+          key: 'bg_elapsed_snapshot_s',
+          value: elapsed,
+        );
+      }
       await FlutterForegroundTask.saveData(
         key: 'bg_stop_requested',
         value: true,
@@ -178,7 +214,8 @@ class TimerTaskHandler extends TaskHandler {
         notificationTitle: 'Study Timer',
         notificationText: 'Stopping...',
       );
-      FlutterForegroundTask.sendDataToMain({'action': 'stop'});
+      FlutterForegroundTask.sendDataToMain({'action': 'stop', 'elapsed': elapsed});
+      FlutterForegroundTask.launchApp('/study/active');
     }
   }
 
@@ -242,6 +279,13 @@ Future<void> startTimerForegroundService(String notificationText) async {
   final permission = await FlutterForegroundTask.checkNotificationPermission();
   if (permission != NotificationPermission.granted) {
     await FlutterForegroundTask.requestNotificationPermission();
+  }
+
+  // SYSTEM_ALERT_WINDOW: required for launchApp() to bring app to foreground.
+  if (Platform.isAndroid) {
+    if (!await FlutterForegroundTask.canDrawOverlays) {
+      await FlutterForegroundTask.openSystemAlertWindowSettings();
+    }
   }
 
   try {

@@ -27,6 +27,7 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
   double _progressStart = 0.0;
   double _progressEnd = 0.0;
   bool _hasAutoCompleted = false;
+  bool _hasShownStopDialog = false;
   String? _bgAsset;
 
   double _computeProgress(TimerState s) {
@@ -141,8 +142,9 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
 
   Future<void> _confirmEnd(
     BuildContext context,
-    TimerNotifier notifier,
-  ) async {
+    TimerNotifier notifier, {
+    VoidCallback? onCancel,
+  }) async {
     final router = GoRouter.of(context);
     final confirm = await showDialog<bool>(
       context: context,
@@ -165,6 +167,8 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
     if (confirm == true && mounted) {
       await notifier.complete();
       if (mounted) router.go('/');
+    } else if (mounted) {
+      onCancel?.call();
     }
   }
 
@@ -342,6 +346,22 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
         if (!mounted) return;
         await notifier.complete();
         if (mounted) router.go('/');
+      });
+    }
+
+    // Show confirmation dialog when Stop was tapped in the notification
+    if (s.stopRequested && !_hasShownStopDialog) {
+      _hasShownStopDialog = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _confirmEnd(
+          context,
+          notifier,
+          onCancel: () {
+            notifier.clearStopRequest();
+            _hasShownStopDialog = false;
+          },
+        );
       });
     }
 
