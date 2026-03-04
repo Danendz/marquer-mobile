@@ -9,6 +9,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:marquer/services/toast_service.dart';
 import 'package:marquer/stores/auth_store.dart';
 import 'package:marquer/stores/user_store.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:marquer/services/foreground_timer_service.dart';
 import 'package:marquer/utils/register_singletones.dart';
 import 'package:provider/provider.dart';
@@ -17,6 +18,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   initForegroundService();
+  FlutterForegroundTask.initCommunicationPort();
   await dotenv.load(fileName: ".env");
 
   await SentryFlutter.init(
