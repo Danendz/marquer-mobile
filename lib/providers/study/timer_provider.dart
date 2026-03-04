@@ -112,6 +112,7 @@ class TimerNotifier extends Notifier<TimerState> {
   int _tickCount = 0;
   SharedPreferences? _prefs;
   DateTime? _lastTickTime;
+  bool _bgCallbackRegistered = false;
 
   Future<SharedPreferences> get _sharedPrefs async =>
       _prefs ??= await SharedPreferences.getInstance();
@@ -173,6 +174,77 @@ class TimerNotifier extends Notifier<TimerState> {
     );
   }
 
+  void _ensureBgCallback() {
+    if (_bgCallbackRegistered) return;
+    _bgCallbackRegistered = true;
+    FlutterForegroundTask.addTaskDataCallback(_onBgAction);
+  }
+
+  void _onBgAction(Object data) {
+    if (data is! Map) return;
+    final action = data['action'] as String?;
+    final elapsed = data['elapsed'] as int?;
+    switch (action) {
+      case 'pause':
+        _pauseFromBg(elapsed);
+        break;
+      case 'resume':
+        _resumeFromBg(elapsed);
+        break;
+      case 'stop':
+        complete();
+        break;
+    }
+  }
+
+  // Called when Pause is tapped in the notification.
+  // Does NOT touch bg state — the bg isolate already updated it.
+  void _pauseFromBg(int? elapsed) {
+    _ticker?.cancel();
+    state = state.copyWith(
+      isRunning: false,
+      elapsedSeconds: elapsed ?? state.elapsedSeconds,
+    );
+    WakelockPlus.disable();
+    if (state.serverSession != null) {
+      final id = state.serverSession!.id;
+      final body = {
+        'status': 'paused',
+        'actual_duration_seconds': state.elapsedSeconds,
+        'pomodoro_completed_cycles': state.completedCycles,
+      };
+      unawaited(() async {
+        try {
+          await _service.updateSession(id, body);
+        } catch (e) {
+          debugPrint(e.toString());
+        }
+      }());
+    }
+  }
+
+  // Called when Resume is tapped in the notification.
+  // Does NOT touch notification or bg_paused — the bg isolate already updated them.
+  void _resumeFromBg(int? elapsed) {
+    state = state.copyWith(
+      isRunning: true,
+      elapsedSeconds: elapsed ?? state.elapsedSeconds,
+    );
+    WakelockPlus.enable();
+    _startTicker();
+    unawaited(_saveBgState());
+    if (state.serverSession != null) {
+      final id = state.serverSession!.id;
+      unawaited(() async {
+        try {
+          await _service.updateSession(id, {'status': 'active'});
+        } catch (e) {
+          debugPrint(e.toString());
+        }
+      }());
+    }
+  }
+
   String _notificationText() {
     switch (state.mode) {
       case TimerMode.countUp:
@@ -192,6 +264,10 @@ class TimerNotifier extends Notifier<TimerState> {
             return 'Studying: ${_formatTime(state.elapsedSeconds)}';
         }
     }
+  }
+
+  String _pausedNotificationText() {
+    return 'Paused \u2014 ${_formatTime(state.elapsedSeconds)}';
   }
 
   void _saveLocal() {
@@ -216,6 +292,7 @@ class TimerNotifier extends Notifier<TimerState> {
   TimerState build() => TimerState(mode: TimerMode.countUp);
 
   Future<void> loadFromSession(StudySession session) async {
+    _ensureBgCallback();
     _ticker?.cancel();
 
     final prefs = await _sharedPrefs;
@@ -274,6 +351,22 @@ class TimerNotifier extends Notifier<TimerState> {
       }));
     }
 
+    // If stop was tapped from the notification while the app was killed,
+    // auto-complete the session now that the app has reopened.
+    final bgStopRequested =
+        await FlutterForegroundTask.getData<bool>(
+          key: 'bg_stop_requested',
+        ) ??
+        false;
+    if (bgStopRequested) {
+      await FlutterForegroundTask.saveData(
+        key: 'bg_stop_requested',
+        value: false,
+      );
+      unawaited(complete());
+      return;
+    }
+
     if (session.status.name == 'active') {
       WakelockPlus.enable();
       _startTicker();
@@ -283,6 +376,7 @@ class TimerNotifier extends Notifier<TimerState> {
   }
 
   Future<void> start(StudySession session) async {
+    _ensureBgCallback();
     _ticker?.cancel();
     _clearLocal();
     state = TimerState(
@@ -313,7 +407,7 @@ class TimerNotifier extends Notifier<TimerState> {
     state = state.copyWith(isRunning: false);
     WakelockPlus.disable();
     unawaited(clearTimerBgState());
-    unawaited(stopTimerForegroundService());
+    unawaited(updateTimerNotification(_pausedNotificationText(), paused: true));
     if (state.serverSession != null) {
       try {
         await _service.updateSession(state.serverSession!.id, {
@@ -444,7 +538,6 @@ class TimerNotifier extends Notifier<TimerState> {
       }
       state = state.copyWith(elapsedSeconds: newElapsed);
     }
-    unawaited(updateTimerNotification(_notificationText()));
   }
 
   void _tickPomodoro() {

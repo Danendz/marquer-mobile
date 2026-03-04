@@ -11,6 +11,16 @@ String _fmtTime(int seconds) {
   return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
 }
 
+const _kRunningButtons = [
+  NotificationButton(id: 'btn_pause', text: 'Pause'),
+  NotificationButton(id: 'btn_stop', text: 'Stop'),
+];
+
+const _kPausedButtons = [
+  NotificationButton(id: 'btn_resume', text: 'Resume'),
+  NotificationButton(id: 'btn_stop', text: 'Stop'),
+];
+
 void initForegroundService() {
   FlutterForegroundTask.init(
     androidNotificationOptions: AndroidNotificationOptions(
@@ -107,11 +117,70 @@ class TimerTaskHandler extends TaskHandler {
     FlutterForegroundTask.updateService(
       notificationTitle: 'Study Timer',
       notificationText: text,
+      notificationButtons: _kRunningButtons,
     );
   }
 
   @override
   Future<void> onDestroy(DateTime timestamp) async {}
+
+  @override
+  void onNotificationButtonPressed(String id) {
+    _handleButtonPress(id);
+  }
+
+  Future<void> _handleButtonPress(String id) async {
+    if (id == 'btn_pause') {
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final virtualStartMs =
+          await FlutterForegroundTask.getData<int>(
+            key: 'bg_virtual_start_ms',
+          ) ??
+          nowMs;
+      final elapsed = (nowMs - virtualStartMs) ~/ 1000;
+      await FlutterForegroundTask.saveData(
+        key: 'bg_elapsed_snapshot_s',
+        value: elapsed,
+      );
+      await FlutterForegroundTask.saveData(key: 'bg_paused', value: true);
+      await FlutterForegroundTask.updateService(
+        notificationTitle: 'Study Timer',
+        notificationText: 'Paused \u2014 ${_fmtTime(elapsed)}',
+        notificationButtons: _kPausedButtons,
+      );
+      FlutterForegroundTask.sendDataToMain({'action': 'pause', 'elapsed': elapsed});
+    } else if (id == 'btn_resume') {
+      final snapshot =
+          await FlutterForegroundTask.getData<int>(
+            key: 'bg_elapsed_snapshot_s',
+          ) ??
+          0;
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final newVirtualStartMs = nowMs - snapshot * 1000;
+      await FlutterForegroundTask.saveData(
+        key: 'bg_virtual_start_ms',
+        value: newVirtualStartMs,
+      );
+      await FlutterForegroundTask.saveData(key: 'bg_paused', value: false);
+      await FlutterForegroundTask.updateService(
+        notificationTitle: 'Study Timer',
+        notificationText: 'Studying: ${_fmtTime(snapshot)}',
+        notificationButtons: _kRunningButtons,
+      );
+      FlutterForegroundTask.sendDataToMain({'action': 'resume', 'elapsed': snapshot});
+    } else if (id == 'btn_stop') {
+      await FlutterForegroundTask.saveData(
+        key: 'bg_stop_requested',
+        value: true,
+      );
+      await FlutterForegroundTask.saveData(key: 'bg_paused', value: true);
+      await FlutterForegroundTask.updateService(
+        notificationTitle: 'Study Timer',
+        notificationText: 'Stopping...',
+      );
+      FlutterForegroundTask.sendDataToMain({'action': 'stop'});
+    }
+  }
 
   @override
   void onNotificationPressed() {
@@ -180,6 +249,7 @@ Future<void> startTimerForegroundService(String notificationText) async {
       await FlutterForegroundTask.updateService(
         notificationTitle: 'Study Timer',
         notificationText: notificationText,
+        notificationButtons: _kRunningButtons,
       );
       return;
     }
@@ -187,6 +257,7 @@ Future<void> startTimerForegroundService(String notificationText) async {
       serviceId: 300,
       notificationTitle: 'Study Timer',
       notificationText: notificationText,
+      notificationButtons: _kRunningButtons,
       callback: startTimerCallback,
     );
   } catch (_) {
@@ -200,12 +271,16 @@ Future<void> stopTimerForegroundService() async {
   } catch (_) {}
 }
 
-Future<void> updateTimerNotification(String text) async {
+Future<void> updateTimerNotification(
+  String text, {
+  bool paused = false,
+}) async {
   try {
     if (await FlutterForegroundTask.isRunningService) {
       await FlutterForegroundTask.updateService(
         notificationTitle: 'Study Timer',
         notificationText: text,
+        notificationButtons: paused ? _kPausedButtons : _kRunningButtons,
       );
     }
   } catch (_) {}
