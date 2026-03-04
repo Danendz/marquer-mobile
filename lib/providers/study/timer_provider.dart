@@ -331,6 +331,8 @@ class TimerNotifier extends Notifier<TimerState> {
     // (handles the case where the app was killed but the service kept running).
     final bgPaused =
         await FlutterForegroundTask.getData<bool>(key: 'bg_paused') ?? true;
+    final bgPhase =
+        await FlutterForegroundTask.getData<String>(key: 'bg_phase');
     if (!bgPaused) {
       final virtualStartMs = await FlutterForegroundTask.getData<int>(
         key: 'bg_virtual_start_ms',
@@ -338,7 +340,10 @@ class TimerNotifier extends Notifier<TimerState> {
       if (virtualStartMs != null) {
         final bgElapsed =
             (DateTime.now().millisecondsSinceEpoch - virtualStartMs) ~/ 1000;
-        if (bgElapsed > elapsedSeconds) {
+        // Don't inflate study elapsed with break time in pomodoro mode.
+        final isInBreak = session.timerMode == TimerMode.pomodoro &&
+            (bgPhase == 'shortBreak' || bgPhase == 'longBreak');
+        if (!isInBreak && bgElapsed > elapsedSeconds) {
           elapsedSeconds = bgElapsed;
           localWasNewer = true;
         }
@@ -355,11 +360,45 @@ class TimerNotifier extends Notifier<TimerState> {
       localWasNewer = true;
     }
 
+    // Restore pomodoro phase and phase elapsed from bg state (running only).
+    int phaseElapsedSeconds = 0;
+    if (session.timerMode == TimerMode.pomodoro && !bgPaused) {
+      final phaseVirtualStartMs = await FlutterForegroundTask.getData<int>(
+        key: 'bg_phase_virtual_start_ms',
+      );
+      if (phaseVirtualStartMs != null) {
+        final phaseTotalS =
+            await FlutterForegroundTask.getData<int>(key: 'bg_phase_total_s');
+        phaseElapsedSeconds =
+            (DateTime.now().millisecondsSinceEpoch - phaseVirtualStartMs) ~/
+            1000;
+        if (phaseTotalS != null) {
+          phaseElapsedSeconds = phaseElapsedSeconds.clamp(0, phaseTotalS);
+        }
+      }
+    }
+
+    final TimerPhase restoredPhase;
+    if (session.timerMode == TimerMode.pomodoro) {
+      switch (bgPhase) {
+        case 'shortBreak':
+          restoredPhase = TimerPhase.shortBreak;
+          break;
+        case 'longBreak':
+          restoredPhase = TimerPhase.longBreak;
+          break;
+        default:
+          restoredPhase = TimerPhase.work;
+      }
+    } else {
+      restoredPhase = TimerPhase.idle;
+    }
+
     state = TimerState(
       isRunning: session.status.name == 'active',
-      phase: TimerPhase.work,
+      phase: restoredPhase,
       elapsedSeconds: elapsedSeconds,
-      phaseElapsedSeconds: 0,
+      phaseElapsedSeconds: phaseElapsedSeconds,
       mode: session.timerMode,
       completedCycles: completedCycles,
       totalCycles: session.pomodoroCycles ?? 4,
@@ -446,6 +485,10 @@ class TimerNotifier extends Notifier<TimerState> {
     _ticker?.cancel();
     state = state.copyWith(isRunning: false);
     WakelockPlus.disable();
+    unawaited(FlutterForegroundTask.saveData(
+      key: 'bg_elapsed_snapshot_s',
+      value: state.elapsedSeconds,
+    ));
     unawaited(clearTimerBgState());
     unawaited(updateTimerNotification(_pausedNotificationText(), paused: true));
     if (state.serverSession != null) {
@@ -527,6 +570,7 @@ class TimerNotifier extends Notifier<TimerState> {
 
   void clearStopRequest() {
     state = state.copyWith(stopRequested: false);
+    unawaited(FlutterForegroundTask.saveData(key: 'bg_stop_requested', value: false));
     unawaited(updateTimerNotification(_pausedNotificationText(), paused: true));
   }
 

@@ -256,6 +256,10 @@ Future<void> saveTimerBgState({
   if (phase != null) {
     await FlutterForegroundTask.saveData(key: 'bg_phase', value: phase);
   }
+  // Reset one-shot flags so a new/resumed session doesn't inherit stale state.
+  await FlutterForegroundTask.saveData(key: 'bg_stop_requested', value: false);
+  await FlutterForegroundTask.saveData(key: 'bg_countdown_completed', value: false);
+  await FlutterForegroundTask.saveData(key: 'bg_elapsed_snapshot_s', value: 0);
   if (phaseElapsedSeconds != null && phaseTotalSeconds != null) {
     final phaseVirtualStartMs = nowMs - phaseElapsedSeconds * 1000;
     await FlutterForegroundTask.saveData(

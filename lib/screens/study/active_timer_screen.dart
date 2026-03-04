@@ -107,6 +107,7 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _breathController.stop();
+      ref.read(timerProvider.notifier).pauseTicker();
     } else if (state == AppLifecycleState.resumed) {
       final timerState = ref.read(timerProvider);
       if (timerState.isRunning) {

@@ -67,6 +67,12 @@ class _MyAppState extends State<MyApp> {
   late final _router = createRouter();
 
   @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Marquer',
