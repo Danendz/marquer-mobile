@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/study/study_session.dart';
@@ -9,9 +10,9 @@ import 'package:marquer/api/models/study/timer_mode.dart';
 import 'package:marquer/providers/study/timer_provider.dart';
 
 class ActiveTimerScreen extends ConsumerStatefulWidget {
-  final StudySession session;
+  final StudySession? session;
 
-  const ActiveTimerScreen({super.key, required this.session});
+  const ActiveTimerScreen({super.key, this.session});
 
   @override
   ConsumerState<ActiveTimerScreen> createState() => _ActiveTimerScreenState();
@@ -26,6 +27,7 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
   double _progressStart = 0.0;
   double _progressEnd = 0.0;
   bool _hasAutoCompleted = false;
+  bool _hasShownStopDialog = false;
   String? _bgAsset;
 
   double _computeProgress(TimerState s) {
@@ -64,12 +66,22 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
     );
     _loadBgAsset();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final timerState = ref.read(timerProvider);
-      if (timerState.serverSession?.id != widget.session.id) {
-        // Session not yet loaded (app restart or first navigation without start())
-        ref.read(timerProvider.notifier).loadFromSession(widget.session);
+      if (!mounted) return;
+      if (widget.session != null) {
+        final timerState = ref.read(timerProvider);
+        if (timerState.serverSession?.id != widget.session!.id) {
+          // Session not yet loaded (app restart or first navigation without start())
+          ref.read(timerProvider.notifier).loadFromSession(widget.session!);
+        }
+        // else: start() was already called by CreateSessionSheet — do nothing
+      } else {
+        // extra was null: app restored from background
+        final timerState = ref.read(timerProvider);
+        if (timerState.serverSession == null) {
+          context.go('/');
+        }
+        // else: provider still has the session — carry on
       }
-      // else: start() was already called by CreateSessionSheet — do nothing
     });
   }
 
@@ -96,6 +108,7 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _breathController.stop();
+      ref.read(timerProvider.notifier).pauseTicker();
     } else if (state == AppLifecycleState.resumed) {
       final timerState = ref.read(timerProvider);
       if (timerState.isRunning) {
@@ -131,8 +144,9 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
 
   Future<void> _confirmEnd(
     BuildContext context,
-    TimerNotifier notifier,
-  ) async {
+    TimerNotifier notifier, {
+    VoidCallback? onCancel,
+  }) async {
     final router = GoRouter.of(context);
     final confirm = await showDialog<bool>(
       context: context,
@@ -155,6 +169,8 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
     if (confirm == true && mounted) {
       await notifier.complete();
       if (mounted) router.go('/');
+    } else if (mounted) {
+      onCancel?.call();
     }
   }
 
@@ -335,7 +351,24 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
       });
     }
 
-    return PopScope(
+    // Show confirmation dialog when Stop was tapped in the notification
+    if (s.stopRequested && !_hasShownStopDialog) {
+      _hasShownStopDialog = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _confirmEnd(
+          context,
+          notifier,
+          onCancel: () {
+            notifier.clearStopRequest();
+            _hasShownStopDialog = false;
+          },
+        );
+      });
+    }
+
+    return WithForegroundTask(
+      child: PopScope(
       canPop: false,
       child: Stack(
         fit: StackFit.expand,
@@ -469,6 +502,7 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
             ),
           ),
         ],
+      ),
       ),
     );
   }

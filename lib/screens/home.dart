@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/study/study_session.dart';
 import 'package:marquer/api/services/study_service.dart';
 import 'package:marquer/providers/study/study_stats_provider.dart';
+import 'package:marquer/providers/study/timer_provider.dart';
 import 'package:marquer/screens/study/create_session_sheet.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -35,36 +37,62 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (!mounted || sessions.isEmpty) return;
     final session = sessions.first;
     final isPaused = session.status.name == 'paused';
+
+    // Guard: while the API calls were in flight the user may have already
+    // started (or resumed) a session — skip to avoid a duplicate push.
+    if (ref.read(timerProvider).serverSession != null) return;
+
+    // If the foreground service is running the user tapped the notification
+    // to open the app — skip the dialog and go straight to the timer screen.
+    if (await FlutterForegroundTask.isRunningService) {
+      if (mounted) context.push('/study/active', extra: session);
+      return;
+    }
+
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder:
-          (ctx) => AlertDialog(
+      builder: (ctx) {
+        bool canceling = false;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
             title: Text(isPaused ? 'Paused Session' : 'Active Session'),
             content: Text(
               'You have a ${isPaused ? 'paused' : 'active'} study session: "${session.name}". Resume it?',
             ),
-                actions: [
-                TextButton(
-                  onPressed: () async {
-                    Navigator.of(ctx).pop();
-                    try {
-                      await StudyService().cancelSession(session.id);
-                    } catch (e) {
-                      debugPrint('failed to cancel session: $e');
-                    }
-                  },
-                  child: const Text('Cancel Session'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    context.push('/study/active', extra: session);
-                  },
-                  child: const Text('Resume'),
-                ),
-              ],
-            ),
+            actions: [
+              TextButton(
+                onPressed: canceling
+                    ? null
+                    : () async {
+                        setDialogState(() => canceling = true);
+                        try {
+                          await StudyService().cancelSession(session.id);
+                        } catch (e) {
+                          debugPrint('failed to cancel session: $e');
+                        }
+                        if (ctx.mounted) Navigator.of(ctx).pop();
+                      },
+                child: canceling
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Cancel Session'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  context.push('/study/active', extra: session);
+                },
+                child: const Text('Resume'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -150,7 +178,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     icon: Icons.play_circle_fill,
                     label: 'Start Study',
                     color: colorScheme.primary,
-                    onTap: () => _showCreateSessionSheet(context),
+                    onTap: _showCreateSessionSheet,
                   ),
                   _Tile(
                     icon: Icons.insert_chart_outlined_rounded,
@@ -180,13 +208,16 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  void _showCreateSessionSheet(BuildContext context) {
-    showModalBottomSheet(
+  Future<void> _showCreateSessionSheet() async {
+    final session = await showModalBottomSheet<StudySession>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const CreateSessionSheet(),
     );
+    if (session == null || !mounted) return;
+    ref.read(timerProvider.notifier).start(session);
+    context.push('/study/active', extra: session);
   }
 }
 
