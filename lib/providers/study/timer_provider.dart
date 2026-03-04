@@ -360,20 +360,30 @@ class TimerNotifier extends Notifier<TimerState> {
       localWasNewer = true;
     }
 
-    // Restore pomodoro phase and phase elapsed from bg state (running only).
+    // Restore pomodoro phase and phase elapsed from bg state.
     int phaseElapsedSeconds = 0;
-    if (session.timerMode == TimerMode.pomodoro && !bgPaused) {
-      final phaseVirtualStartMs = await FlutterForegroundTask.getData<int>(
-        key: 'bg_phase_virtual_start_ms',
-      );
-      if (phaseVirtualStartMs != null) {
-        final phaseTotalS =
-            await FlutterForegroundTask.getData<int>(key: 'bg_phase_total_s');
-        phaseElapsedSeconds =
-            (DateTime.now().millisecondsSinceEpoch - phaseVirtualStartMs) ~/
-            1000;
-        if (phaseTotalS != null) {
-          phaseElapsedSeconds = phaseElapsedSeconds.clamp(0, phaseTotalS);
+    if (session.timerMode == TimerMode.pomodoro) {
+      final phaseTotalS =
+          await FlutterForegroundTask.getData<int>(key: 'bg_phase_total_s');
+      if (!bgPaused) {
+        final phaseVirtualStartMs = await FlutterForegroundTask.getData<int>(
+          key: 'bg_phase_virtual_start_ms',
+        );
+        if (phaseVirtualStartMs != null) {
+          phaseElapsedSeconds =
+              (DateTime.now().millisecondsSinceEpoch - phaseVirtualStartMs) ~/
+              1000;
+          if (phaseTotalS != null) {
+            phaseElapsedSeconds = phaseElapsedSeconds.clamp(0, phaseTotalS);
+          }
+        }
+      } else {
+        final snapshot = await FlutterForegroundTask.getData<int>(
+          key: 'bg_phase_snapshot_elapsed_s',
+        );
+        if (snapshot != null) {
+          phaseElapsedSeconds =
+              phaseTotalS != null ? snapshot.clamp(0, phaseTotalS) : snapshot;
         }
       }
     }
@@ -488,6 +498,10 @@ class TimerNotifier extends Notifier<TimerState> {
     unawaited(FlutterForegroundTask.saveData(
       key: 'bg_elapsed_snapshot_s',
       value: state.elapsedSeconds,
+    ));
+    unawaited(FlutterForegroundTask.saveData(
+      key: 'bg_phase_snapshot_elapsed_s',
+      value: state.phaseElapsedSeconds,
     ));
     unawaited(clearTimerBgState());
     unawaited(updateTimerNotification(_pausedNotificationText(), paused: true));

@@ -172,6 +172,25 @@ class TimerTaskHandler extends TaskHandler {
         key: 'bg_elapsed_snapshot_s',
         value: elapsed,
       );
+      // Save phase snapshot so btn_resume can re-anchor bg_phase_virtual_start_ms.
+      if (mode == 'pomodoro') {
+        final phaseVirtualStartMs = await FlutterForegroundTask.getData<int>(
+          key: 'bg_phase_virtual_start_ms',
+        );
+        if (phaseVirtualStartMs != null) {
+          final phaseTotalS =
+              await FlutterForegroundTask.getData<int>(
+                key: 'bg_phase_total_s',
+              ) ??
+              0;
+          final phaseElapsed =
+              ((nowMs - phaseVirtualStartMs) ~/ 1000).clamp(0, phaseTotalS);
+          await FlutterForegroundTask.saveData(
+            key: 'bg_phase_elapsed_s',
+            value: phaseElapsed,
+          );
+        }
+      }
       await FlutterForegroundTask.saveData(key: 'bg_paused', value: true);
       await FlutterForegroundTask.updateService(
         notificationTitle: 'Study Timer',
@@ -191,6 +210,16 @@ class TimerTaskHandler extends TaskHandler {
         key: 'bg_virtual_start_ms',
         value: newVirtualStartMs,
       );
+      // Re-anchor phase virtual start so break/work timer resumes correctly.
+      final phaseSnapshot = await FlutterForegroundTask.getData<int>(
+        key: 'bg_phase_elapsed_s',
+      );
+      if (phaseSnapshot != null) {
+        await FlutterForegroundTask.saveData(
+          key: 'bg_phase_virtual_start_ms',
+          value: nowMs - phaseSnapshot * 1000,
+        );
+      }
       await FlutterForegroundTask.saveData(key: 'bg_paused', value: false);
       await FlutterForegroundTask.updateService(
         notificationTitle: 'Study Timer',
