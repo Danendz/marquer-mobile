@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:marquer/api/models/calendar/countdown.dart';
 import 'package:marquer/api/models/study/study_session.dart';
 import 'package:marquer/layouts/app_layout.dart';
+import 'package:marquer/screens/calendar/countdown_detail_screen.dart';
+import 'package:marquer/screens/calendar/countdown_settings_screen.dart';
 import 'package:marquer/screens/home.dart';
 import 'package:marquer/screens/notes/notes.dart';
 import 'package:marquer/screens/notes/notes_edit.dart';
@@ -59,6 +62,20 @@ GoRouter createRouter() {
         builder: (context, state) {
           final session = state.extra as StudySession?;
           return ActiveTimerScreen(session: session);
+        },
+      ),
+      GoRoute(
+        path: '/countdown/detail',
+        builder: (context, state) {
+          final countdown = state.extra as Countdown;
+          return CountdownDetailScreen(initialCountdown: countdown);
+        },
+      ),
+      GoRoute(
+        path: '/countdown/settings',
+        builder: (context, state) {
+          final countdown = state.extra as Countdown;
+          return CountdownSettingsScreen(countdown: countdown);
         },
       ),
       ShellRoute(
