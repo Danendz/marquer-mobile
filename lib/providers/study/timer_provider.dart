@@ -11,6 +11,7 @@ import 'package:marquer/api/services/study_service.dart';
 import 'package:marquer/providers/study/study_sessions_provider.dart';
 import 'package:marquer/providers/study/study_stats_provider.dart';
 import 'package:marquer/services/foreground_timer_service.dart';
+import 'package:marquer/services/toast_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -546,6 +547,10 @@ class TimerNotifier extends Notifier<TimerState> {
     final elapsed = state.elapsedSeconds;
     final cycles = state.completedCycles;
     state = TimerState(mode: TimerMode.countUp);
+    if (elapsed < 60) {
+      ToastService.showError('Study time under 1 minute does not count');
+      return;
+    }
     if (session != null) {
       try {
         await _service.completeSession(
