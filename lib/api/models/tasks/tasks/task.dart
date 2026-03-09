@@ -4,6 +4,7 @@ class Task {
   final int id;
   final String name;
   final TaskStatus status;
+  final String? date;
   final int? taskCategoryId;
   final String createdAt;
   final String updatedAt;
@@ -12,6 +13,7 @@ class Task {
     required this.id,
     required this.name,
     required this.status,
+    this.date,
     this.taskCategoryId,
     required this.createdAt,
     required this.updatedAt,
@@ -24,6 +26,7 @@ class Task {
       (e) => e.name == json['status'],
       orElse: () => TaskStatus.draft,
     ),
+    date: json['date'] as String?,
     taskCategoryId: json['task_category_id'] as int?,
     createdAt: json['created_at'] as String,
     updatedAt: json['updated_at'] as String,
@@ -31,11 +34,12 @@ class Task {
 
   static const _unset = Object();
 
-  Task copyWith({String? name, TaskStatus? status, Object? taskCategoryId = _unset}) {
+  Task copyWith({String? name, TaskStatus? status, Object? date = _unset, Object? taskCategoryId = _unset}) {
     return Task(
       id: id,
       name: name ?? this.name,
       status: status ?? this.status,
+      date: identical(date, _unset) ? this.date : date as String?,
       taskCategoryId: identical(taskCategoryId, _unset) ? this.taskCategoryId : taskCategoryId as int?,
       createdAt: createdAt,
       updatedAt: updatedAt,

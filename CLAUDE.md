@@ -1,5 +1,12 @@
 # Marquer Mobile — Claude guidance
 
+## Git Workflow Rules
+
+- Never commit changes without explicit user confirmation first.
+- Never push changes without explicit user confirmation first.
+- Never create a PR without explicit user confirmation first.
+- Always show what will be committed/pushed and ask before proceeding.
+
 ## PR Title Convention
 
 All PRs must follow: `<type>: <description>`

@@ -7,9 +7,9 @@ import 'package:marquer/screens/home.dart';
 import 'package:marquer/screens/notes/notes.dart';
 import 'package:marquer/screens/notes/notes_edit.dart';
 import 'package:marquer/screens/notes/notes_add.dart';
+import 'package:marquer/screens/calendar/calendar_screen.dart';
 import 'package:marquer/screens/study/active_timer_screen.dart';
 import 'package:marquer/screens/study/manage_subjects_screen.dart';
-import 'package:marquer/screens/study/study_sessions_screen.dart';
 import 'package:marquer/screens/study/study_stats_screen.dart';
 
 import '../screens/auth/login.dart';
@@ -95,12 +95,12 @@ GoRouter createRouter() {
             builder: (context, state) => const StudyStatsScreen(),
           ),
           GoRoute(
-            path: '/study/sessions',
-            builder: (context, state) => const StudySessionsScreen(),
-          ),
-          GoRoute(
             path: '/study/subjects',
             builder: (context, state) => const ManageSubjectsScreen(),
+          ),
+          GoRoute(
+            path: '/calendar',
+            builder: (context, state) => const CalendarScreen(),
           ),
         ],
       ),
