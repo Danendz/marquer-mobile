@@ -3,7 +3,11 @@ import 'package:marquer/api/api.dart';
 import 'package:marquer/api/models/calendar/calendar_overview.dart';
 import 'package:marquer/api/models/calendar/countdown.dart';
 import 'package:marquer/api/models/calendar/create_countdown_request.dart';
+import 'package:marquer/api/models/calendar/create_plan_request.dart';
+import 'package:marquer/api/models/calendar/plan.dart';
+import 'package:marquer/api/models/calendar/plan_for_date.dart';
 import 'package:marquer/api/models/calendar/update_countdown_request.dart';
+import 'package:marquer/api/models/calendar/update_plan_request.dart';
 import 'package:marquer/api/models/model_parser.dart';
 
 final getIt = GetIt.instance;
@@ -48,5 +52,54 @@ final class CalendarService {
 
   Future<void> deleteCountdown(String id) async {
     await api.delete('/calendar/countdowns/$id');
+  }
+
+  // Plans
+
+  Future<List<Plan>> getPlans() async {
+    final resp = await api.get<List<Plan>>(
+      '/calendar/plans',
+      fromJsonT: (json) => ModelParser.listFromJson(json, Plan.fromJson),
+    );
+    return resp.data;
+  }
+
+  Future<Plan> createPlan(CreatePlanRequest request) async {
+    final resp = await api.post<Plan>(
+      '/calendar/plans',
+      body: request,
+      fromJsonT: (json) => ModelParser.objectFromJson(json, Plan.fromJson),
+    );
+    return resp.data;
+  }
+
+  Future<Plan> updatePlan(String id, UpdatePlanRequest request) async {
+    final resp = await api.put<Plan>(
+      '/calendar/plans/$id',
+      body: request,
+      fromJsonT: (json) => ModelParser.objectFromJson(json, Plan.fromJson),
+    );
+    return resp.data;
+  }
+
+  Future<void> deletePlan(String id) async {
+    await api.delete('/calendar/plans/$id');
+  }
+
+  Future<List<PlanForDate>> getPlansForDate(String date) async {
+    final resp = await api.get<List<PlanForDate>>(
+      '/calendar/plans/for-date',
+      query: {'date': date},
+      fromJsonT: (json) => ModelParser.listFromJson(json, PlanForDate.fromJson),
+    );
+    return resp.data;
+  }
+
+  Future<bool> togglePlanTaskCompletion(String planTaskId, String date) async {
+    final resp = await api.post<Map<String, dynamic>>(
+      '/calendar/plan-tasks/$planTaskId/toggle?date=$date',
+      fromJsonT: (json) => json as Map<String, dynamic>,
+    );
+    return resp.data['is_completed'] as bool;
   }
 }

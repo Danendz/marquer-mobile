@@ -4,16 +4,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:marquer/api/models/calendar/countdown.dart';
+import 'package:marquer/api/models/calendar/plan.dart';
 import 'package:marquer/api/models/calendar/update_countdown_request.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/components/calendar/day_countdown_list.dart';
 import 'package:marquer/components/calendar/day_event_list.dart';
+import 'package:marquer/components/calendar/day_plan_list.dart';
 import 'package:marquer/providers/calendar/calendar_focused_month_provider.dart';
 import 'package:marquer/providers/calendar/calendar_overview_provider.dart';
 import 'package:marquer/providers/calendar/calendar_selected_date_provider.dart';
 import 'package:marquer/providers/calendar/countdowns_provider.dart';
+import 'package:marquer/providers/calendar/plans_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
 import 'package:marquer/utils/colors.dart';
+
+enum _Tab { calendar, countdown, plans }
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -23,7 +28,7 @@ class CalendarScreen extends ConsumerStatefulWidget {
 }
 
 class _CalendarScreenState extends ConsumerState<CalendarScreen> {
-  bool _showCalendar = true;
+  _Tab _tab = _Tab.calendar;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +38,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final overviewAsync = ref.watch(calendarOverviewProvider);
 
     final datesWithIncomplete = overviewAsync.asData?.value.datesWithIncomplete ?? {};
+    final datesWithPlans = overviewAsync.asData?.value.datesWithPlans ?? {};
     final countdownsAsync = ref.watch(countdownsProvider);
     final countdownDates = <String>{
       for (final c in countdownsAsync.asData?.value ?? []) c.targetDate,
@@ -42,13 +48,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       appBar: AppBar(
         title: const Text('Calendar'),
         actions: [
-          SegmentedButton<bool>(
+          SegmentedButton<_Tab>(
             segments: const [
-              ButtonSegment(value: true, icon: Icon(Icons.calendar_month)),
-              ButtonSegment(value: false, icon: Icon(Icons.timer_outlined)),
+              ButtonSegment(value: _Tab.calendar, icon: Icon(Icons.calendar_month)),
+              ButtonSegment(value: _Tab.countdown, icon: Icon(Icons.timer_outlined)),
+              ButtonSegment(value: _Tab.plans, icon: Icon(Icons.checklist_outlined)),
             ],
-            selected: {_showCalendar},
-            onSelectionChanged: (val) => setState(() => _showCalendar = val.first),
+            selected: {_tab},
+            onSelectionChanged: (val) => setState(() => _tab = val.first),
             showSelectedIcon: false,
           ),
           const SizedBox(width: 8),
@@ -67,24 +74,20 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           ],
         ),
         child: KeyedSubtree(
-          key: ValueKey(_showCalendar),
-          child: _showCalendar
-              ? _buildCalendarView(colors, selectedDate, focusedMonth, datesWithIncomplete, countdownDates)
-              : _buildCountdownView(),
+          key: ValueKey(_tab),
+          child: switch (_tab) {
+            _Tab.calendar => _buildCalendarView(colors, selectedDate, focusedMonth, datesWithIncomplete, datesWithPlans, countdownDates),
+            _Tab.countdown => _buildCountdownView(),
+            _Tab.plans => _buildPlansView(),
+          },
         ),
       ),
-      floatingActionButton: IgnorePointer(
-        ignoring: _showCalendar,
-        child: AnimatedScale(
-          scale: _showCalendar ? 0.0 : 1.0,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          child: FloatingActionButton(
-            onPressed: _showAddCountdownSheet,
-            child: const Icon(Icons.add),
-          ),
-        ),
-      ),
+      floatingActionButton: _tab == _Tab.calendar
+          ? null
+          : FloatingActionButton(
+              onPressed: _tab == _Tab.countdown ? _showAddCountdownSheet : _navigateToAddPlan,
+              child: const Icon(Icons.add),
+            ),
     );
   }
 
@@ -93,6 +96,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     DateTime selectedDate,
     DateTime focusedMonth,
     Set<String> datesWithIncomplete,
+    Set<String> datesWithPlans,
     Set<String> countdownDates,
   ) {
     return RefreshIndicator(
@@ -108,76 +112,89 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TableCalendar(
-            firstDay: DateTime(2020),
-            lastDay: DateTime(2100),
-            focusedDay: focusedMonth,
-            selectedDayPredicate: (day) => isSameDay(day, selectedDate),
-            onDaySelected: (selected, focused) {
-              ref.read(calendarSelectedDateProvider.notifier).select(selected);
-              ref.read(calendarFocusedMonthProvider.notifier).set(focused);
-            },
-            onPageChanged: (focused) {
-              ref.read(calendarFocusedMonthProvider.notifier).set(focused);
-            },
-            calendarBuilders: CalendarBuilders(
-              markerBuilder: (context, day, _) {
-                final key = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-                final hasTask = datesWithIncomplete.contains(key);
-                final hasCountdown = countdownDates.contains(key);
-                if (!hasTask && !hasCountdown) return null;
-                return Positioned(
-                  bottom: 4,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (hasTask)
-                        Container(
-                          width: 6,
-                          height: 6,
-                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      if (hasCountdown)
-                        Container(
-                          width: 6,
-                          height: 6,
-                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                          decoration: BoxDecoration(
-                            color: colors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                    ],
-                  ),
-                );
+              firstDay: DateTime(2020),
+              lastDay: DateTime(2100),
+              focusedDay: focusedMonth,
+              availableCalendarFormats: const {CalendarFormat.month: 'Month'},
+              selectedDayPredicate: (day) => isSameDay(day, selectedDate),
+              onDaySelected: (selected, focused) {
+                ref.read(calendarSelectedDateProvider.notifier).select(selected);
+                ref.read(calendarFocusedMonthProvider.notifier).set(focused);
               },
-              todayBuilder: (context, day, focusedDay) => _DayCell(
-                day: day,
-                background: colors.primary.withValues(alpha: 0.15),
-                textColor: colors.primary,
-              ),
-              selectedBuilder: (context, day, focusedDay) => _DayCell(
-                day: day,
-                background: colors.primary,
-                textColor: colors.onPrimary,
+              onPageChanged: (focused) {
+                ref.read(calendarFocusedMonthProvider.notifier).set(focused);
+              },
+              calendarBuilders: CalendarBuilders(
+                markerBuilder: (context, day, _) {
+                  final key = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+                  final hasTask = datesWithIncomplete.contains(key);
+                  final hasCountdown = countdownDates.contains(key);
+                  final hasPlan = datesWithPlans.contains(key);
+                  if (!hasTask && !hasCountdown && !hasPlan) return null;
+                  return Positioned(
+                    bottom: 4,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (hasTask)
+                          Container(
+                            width: 6,
+                            height: 6,
+                            margin: const EdgeInsets.symmetric(horizontal: 1),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        if (hasCountdown)
+                          Container(
+                            width: 6,
+                            height: 6,
+                            margin: const EdgeInsets.symmetric(horizontal: 1),
+                            decoration: BoxDecoration(
+                              color: colors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        if (hasPlan)
+                          Container(
+                            width: 6,
+                            height: 6,
+                            margin: const EdgeInsets.symmetric(horizontal: 1),
+                            decoration: const BoxDecoration(
+                              color: Colors.amber,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+                todayBuilder: (context, day, focusedDay) => _DayCell(
+                  day: day,
+                  background: colors.primary.withValues(alpha: 0.15),
+                  textColor: colors.primary,
+                ),
+                selectedBuilder: (context, day, focusedDay) => _DayCell(
+                  day: day,
+                  background: colors.primary,
+                  textColor: colors.onPrimary,
+                ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              DateFormat('EEEE, MMMM d').format(selectedDate),
-              style: Theme.of(context).textTheme.titleMedium,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                DateFormat('EEEE, MMMM d').format(selectedDate),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ),
-          ),
-          const DayEventList(),
-          const DayCountdownList(),
-        ],
+            const DayEventList(),
+            const DayCountdownList(),
+            const DayPlanList(),
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -224,7 +241,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   _HeroCountdownCard(
                     countdown: pinned,
                     onTap: () => context.push('/countdown/detail', extra: pinned),
-                    onLongPress: () => _onLongPress(pinned),
+                    onLongPress: () => _onLongPressCountdown(pinned),
                   ),
                   if (rest.isNotEmpty) ...[
                     const SizedBox(height: 8),
@@ -235,7 +252,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       itemBuilder: (context, index) => _CountdownListTile(
                         countdown: rest[index],
                         onTap: () => context.push('/countdown/detail', extra: rest[index]),
-                        onLongPress: () => _onLongPress(rest[index]),
+                        onLongPress: () => _onLongPressCountdown(rest[index]),
                       ),
                     ),
                   ],
@@ -248,7 +265,66 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  Future<void> _onLongPress(Countdown countdown) async {
+  Widget _buildPlansView() {
+    final plansAsync = ref.watch(plansProvider);
+    final colors = getColors(context);
+
+    return RefreshIndicator(
+      onRefresh: () => ref.refresh(plansProvider.future),
+      child: plansAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => const Center(child: Text('Failed to load plans')),
+        data: (plans) {
+          if (plans.isEmpty) {
+            return const SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(),
+              child: Padding(
+                padding: EdgeInsets.only(top: 200),
+                child: Center(child: Text('No plans yet')),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 100),
+            itemCount: plans.length,
+            itemBuilder: (context, index) {
+              final plan = plans[index];
+              return Opacity(
+                opacity: plan.isActive ? 1.0 : 0.5,
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainer,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    title: Text(plan.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(plan.schedule.label, style: TextStyle(color: colors.primary, fontSize: 12)),
+                        Text(
+                          '${plan.tasks.length} task${plan.tasks.length != 1 ? 's' : ''}',
+                          style: TextStyle(color: colors.onSurface.withValues(alpha: 0.6), fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    onTap: () => _navigateToEditPlan(plan),
+                    onLongPress: () => _onLongPressPlan(plan),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _onLongPressCountdown(Countdown countdown) async {
     await HapticFeedback.mediumImpact();
     if (!mounted) return;
 
@@ -272,6 +348,32 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         ref.read(countdownsProvider.notifier).togglePin(countdown);
       case 'delete':
         ref.read(countdownsProvider.notifier).delete(countdown);
+    }
+  }
+
+  Future<void> _onLongPressPlan(Plan plan) async {
+    await HapticFeedback.mediumImpact();
+    if (!mounted) return;
+
+    final result = await showAppActionSheet(context, [
+      const AppAction(value: 'edit', icon: Icons.edit_outlined, label: 'Edit'),
+      AppAction(
+        value: 'toggle',
+        icon: plan.isActive ? Icons.pause_circle_outline : Icons.play_circle_outline,
+        label: plan.isActive ? 'Deactivate' : 'Activate',
+      ),
+      const AppAction(value: 'delete', icon: Icons.delete_outline, label: 'Delete', isDestructive: true),
+    ]);
+
+    if (!mounted || result == null) return;
+
+    switch (result) {
+      case 'edit':
+        if (mounted) _navigateToEditPlan(plan);
+      case 'toggle':
+        ref.read(plansProvider.notifier).toggleActive(plan);
+      case 'delete':
+        ref.read(plansProvider.notifier).delete(plan);
     }
   }
 
@@ -304,6 +406,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         },
       ),
     );
+  }
+
+  void _navigateToAddPlan() {
+    context.push('/calendar/plan/form');
+  }
+
+  void _navigateToEditPlan(Plan plan) {
+    context.push('/calendar/plan/form', extra: plan);
   }
 }
 
