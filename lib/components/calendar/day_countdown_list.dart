@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/providers/calendar/calendar_selected_date_provider.dart';
+import 'package:marquer/utils/format.dart';
 import 'package:marquer/providers/calendar/countdowns_provider.dart';
 
 class DayCountdownList extends ConsumerWidget {
@@ -15,8 +16,7 @@ class DayCountdownList extends ConsumerWidget {
     final countdowns = countdownsAsync.asData?.value;
     if (countdowns == null) return const SizedBox.shrink();
 
-    final key =
-        '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+    final key = formatDate(selectedDate);
     final matching = countdowns.where((c) => c.targetDate == key).toList();
 
     final colors = Theme.of(context).colorScheme;

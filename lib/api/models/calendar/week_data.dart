@@ -52,6 +52,16 @@ class WeekData {
     required this.countdowns,
   });
 
+  WeekData copyWith({
+    Map<String, List<Task>>? tasks,
+    Map<String, List<WeekPlanTask>>? planTasks,
+    List<Countdown>? countdowns,
+  }) => WeekData(
+    tasks: tasks ?? this.tasks,
+    planTasks: planTasks ?? this.planTasks,
+    countdowns: countdowns ?? this.countdowns,
+  );
+
   factory WeekData.fromJson(Map<String, dynamic> json) {
     final tasksRaw = json['tasks'];
     final tasksJson = tasksRaw is Map<String, dynamic> ? tasksRaw : <String, dynamic>{};

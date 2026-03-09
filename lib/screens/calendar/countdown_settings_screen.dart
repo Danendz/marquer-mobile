@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:marquer/api/models/calendar/countdown.dart';
 import 'package:marquer/api/models/calendar/update_countdown_request.dart';
 import 'package:marquer/providers/calendar/countdowns_provider.dart';
+import 'package:marquer/utils/format.dart';
 
 const _bgImages = [
   'IMG_1157.webp', 'IMG_1158.webp', 'IMG_1159.webp', 'IMG_1160.webp',
@@ -44,9 +45,6 @@ class _CountdownSettingsScreenState extends ConsumerState<CountdownSettingsScree
     super.dispose();
   }
 
-  String _formatDate(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -78,7 +76,7 @@ class _CountdownSettingsScreenState extends ConsumerState<CountdownSettingsScree
       widget.countdown,
       UpdateCountdownRequest(
         name: name,
-        targetDate: _formatDate(_selectedDate),
+        targetDate: formatDate(_selectedDate),
         isPinned: _isPinned,
         bgImage: _selectedBg,
       ),

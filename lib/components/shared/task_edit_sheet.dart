@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:marquer/api/models/tasks/tasks/task.dart';
+import 'package:marquer/utils/format.dart';
 
 class TaskEditSheet extends StatefulWidget {
   final Task task;
@@ -46,9 +47,6 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
     }
   }
 
-  String _fmtTime(TimeOfDay t) =>
-      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-
   Future<void> _pickStartTime() async {
     final picked = await showTimePicker(
       context: context,
@@ -85,8 +83,8 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
 
     final hadStartTime = widget.task.startTime != null;
     final hadEndTime = widget.task.endTime != null;
-    final newStartStr = _startTime != null ? _fmtTime(_startTime!) : null;
-    final newEndStr = _endTime != null ? _fmtTime(_endTime!) : null;
+    final newStartStr = _startTime != null ? formatTimeOfDay(_startTime!) : null;
+    final newEndStr = _endTime != null ? formatTimeOfDay(_endTime!) : null;
 
     Navigator.pop(context);
     widget.onSave(
@@ -144,7 +142,7 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                         onPressed: _pickStartTime,
                         icon: const Icon(Icons.access_time, size: 16),
                         label: Text(
-                          _startTime != null ? _fmtTime(_startTime!) : 'Start time',
+                          _startTime != null ? formatTimeOfDay(_startTime!) : 'Start time',
                           style: const TextStyle(fontSize: 13),
                         ),
                       ),
@@ -155,7 +153,7 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                         onPressed: _startTime != null ? _pickEndTime : null,
                         icon: const Icon(Icons.access_time_filled, size: 16),
                         label: Text(
-                          _endTime != null ? _fmtTime(_endTime!) : 'End time',
+                          _endTime != null ? formatTimeOfDay(_endTime!) : 'End time',
                           style: const TextStyle(fontSize: 13),
                         ),
                       ),

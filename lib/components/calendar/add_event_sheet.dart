@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/providers/calendar/calendar_day_events_provider.dart';
+import 'package:marquer/utils/format.dart';
 
 class AddEventSheet extends ConsumerStatefulWidget {
   final TimeOfDay? initialStartTime;
@@ -46,12 +47,6 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
     super.dispose();
   }
 
-  String _fmtTime(TimeOfDay t) =>
-      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-
-  String _fmtDate(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
   Future<void> _pickStartTime() async {
     final picked = await showTimePicker(
       context: context,
@@ -87,11 +82,11 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
     if (name.isEmpty) return;
     Navigator.pop(context);
 
-    final startStr = _startTime != null ? _fmtTime(_startTime!) : null;
-    final endStr = _endTime != null ? _fmtTime(_endTime!) : null;
+    final startStr = _startTime != null ? formatTimeOfDay(_startTime!) : null;
+    final endStr = _endTime != null ? formatTimeOfDay(_endTime!) : null;
 
     if (widget.onSave != null && _selectedDate != null) {
-      widget.onSave!(name, startStr, endStr, _fmtDate(_selectedDate!));
+      widget.onSave!(name, startStr, endStr, formatDate(_selectedDate!));
     } else {
       await ref.read(calendarDayEventsProvider.notifier).addEvent(
             name,
@@ -158,7 +153,7 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
                         onPressed: _pickStartTime,
                         icon: const Icon(Icons.access_time, size: 16),
                         label: Text(
-                          _startTime != null ? _fmtTime(_startTime!) : 'Start time',
+                          _startTime != null ? formatTimeOfDay(_startTime!) : 'Start time',
                           style: const TextStyle(fontSize: 13),
                         ),
                       ),
@@ -169,7 +164,7 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
                         onPressed: _startTime != null ? _pickEndTime : null,
                         icon: const Icon(Icons.access_time_filled, size: 16),
                         label: Text(
-                          _endTime != null ? _fmtTime(_endTime!) : 'End time',
+                          _endTime != null ? formatTimeOfDay(_endTime!) : 'End time',
                           style: const TextStyle(fontSize: 13),
                         ),
                       ),

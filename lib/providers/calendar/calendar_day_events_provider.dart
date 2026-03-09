@@ -7,6 +7,7 @@ import 'package:marquer/api/models/tasks/tasks/task_status.dart';
 import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
 import 'package:marquer/api/services/tasks_service.dart';
 import 'package:marquer/providers/calendar/calendar_selected_date_provider.dart';
+import 'package:marquer/utils/format.dart';
 import 'package:marquer/services/toast_service.dart';
 
 final calendarDayEventsProvider =
@@ -17,19 +18,16 @@ final calendarDayEventsProvider =
 class CalendarDayEventsNotifier extends AsyncNotifier<List<Task>> {
   final _service = TasksService();
 
-  String _dateString(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
   @override
   Future<List<Task>> build() async {
     final selected = ref.watch(calendarSelectedDateProvider);
-    return _service.getTasks(GetTasksRequest(date: _dateString(selected)));
+    return _service.getTasks(GetTasksRequest(date: formatDate(selected)));
   }
 
   Future<void> addEvent(String name, {String? startTime, String? endTime, String? date}) async {
     final current = state.asData?.value;
     if (current == null) return;
-    final taskDate = date ?? _dateString(ref.read(calendarSelectedDateProvider));
+    final taskDate = date ?? formatDate(ref.read(calendarSelectedDateProvider));
 
     final optimistic = Task(
       id: -DateTime.now().millisecondsSinceEpoch,

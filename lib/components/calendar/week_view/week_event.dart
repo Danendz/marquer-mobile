@@ -9,6 +9,7 @@ sealed class WeekEvent {
   String? get startTime;
   String? get endTime;
   bool get isAllDay => startTime == null || endTime == null;
+  bool get isDone => false;
   Color get color;
 
   int get startMinutes {
@@ -45,6 +46,7 @@ final class TaskEvent extends WeekEvent {
   @override
   Color get color => Colors.teal;
 
+  @override
   bool get isDone => task.status == TaskStatus.done;
 }
 
@@ -62,6 +64,7 @@ final class PlanTaskEvent extends WeekEvent {
   @override
   Color get color => Colors.amber;
 
+  @override
   bool get isDone => planTask.isCompleted;
 }
 

@@ -13,6 +13,7 @@ import 'package:marquer/components/shared/task_edit_sheet.dart';
 import 'package:marquer/providers/calendar/calendar_selected_date_provider.dart';
 import 'package:marquer/providers/calendar/week_data_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
+import 'package:marquer/utils/format.dart';
 
 const double _kPixelsPerHour = 60.0;
 const double _kPixelsPerMinute = _kPixelsPerHour / 60;
@@ -96,9 +97,6 @@ class _WeekPage extends ConsumerStatefulWidget {
 class _WeekPageState extends ConsumerState<_WeekPage> {
   late final ScrollController _scrollController;
 
-  String _fmt(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
   List<DateTime> get _days => List.generate(7, (i) => widget.monday.add(Duration(days: i)));
 
   @override
@@ -116,11 +114,11 @@ class _WeekPageState extends ConsumerState<_WeekPage> {
 
   @override
   Widget build(BuildContext context) {
-    final mondayStr = _fmt(widget.monday);
+    final mondayStr = formatDate(widget.monday);
     final weekAsync = ref.watch(weekDataProvider(mondayStr));
     final selected = ref.watch(calendarSelectedDateProvider);
     final today = DateTime.now();
-    final todayStr = _fmt(today);
+    final todayStr = formatDate(today);
     final colorScheme = Theme.of(context).colorScheme;
 
     final days = _days;
@@ -136,7 +134,6 @@ class _WeekPageState extends ConsumerState<_WeekPage> {
             data: data,
             scrollController: _scrollController,
             colorScheme: colorScheme,
-            fmt: _fmt,
             mondayStr: mondayStr,
           ),
         ),
@@ -160,11 +157,9 @@ class _DayHeaders extends ConsumerWidget {
 
   static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-  String _fmt(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final selectedStr = formatDate(selected);
     return Container(
       padding: const EdgeInsets.only(left: _kTimeGutter),
       decoration: BoxDecoration(
@@ -173,9 +168,9 @@ class _DayHeaders extends ConsumerWidget {
       child: Row(
         children: List.generate(7, (i) {
           final day = days[i];
-          final dateStr = _fmt(day);
+          final dateStr = formatDate(day);
           final isToday = dateStr == today;
-          final isSelected = dateStr == _fmt(selected);
+          final isSelected = dateStr == selectedStr;
 
           return Expanded(
             child: GestureDetector(
@@ -233,7 +228,6 @@ class _WeekBody extends ConsumerWidget {
   final WeekData data;
   final ScrollController scrollController;
   final ColorScheme colorScheme;
-  final String Function(DateTime) fmt;
   final String mondayStr;
 
   const _WeekBody({
@@ -241,12 +235,11 @@ class _WeekBody extends ConsumerWidget {
     required this.data,
     required this.scrollController,
     required this.colorScheme,
-    required this.fmt,
     required this.mondayStr,
   });
 
   List<WeekEvent> _eventsForDay(DateTime day, ColorScheme colors) {
-    final dateStr = fmt(day);
+    final dateStr = formatDate(day);
     final events = <WeekEvent>[];
 
     for (final task in data.tasks[dateStr] ?? []) {
@@ -266,9 +259,13 @@ class _WeekBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final allDayEventsByDay = List.generate(7, (i) {
-      return _eventsForDay(days[i], colorScheme).where((e) => e.isAllDay).toList();
-    });
+    final allDayEventsByDay = <List<WeekEvent>>[];
+    final timedEventsByDay = <List<WeekEvent>>[];
+    for (var i = 0; i < 7; i++) {
+      final events = _eventsForDay(days[i], colorScheme);
+      allDayEventsByDay.add(events.where((e) => e.isAllDay).toList());
+      timedEventsByDay.add(events.where((e) => !e.isAllDay).toList());
+    }
 
     final hasAllDay = allDayEventsByDay.any((list) => list.isNotEmpty);
 
@@ -337,12 +334,9 @@ class _WeekBody extends ConsumerWidget {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: List.generate(7, (i) {
-                              final timedEvents = _eventsForDay(days[i], colorScheme)
-                                  .where((e) => !e.isAllDay)
-                                  .toList();
                               return _DayColumn(
                                 width: columnWidth,
-                                events: timedEvents,
+                                events: timedEventsByDay[i],
                                 colorScheme: colorScheme,
                                 onEventTap: (event) => _handleTap(event, ref, context),
                                 onEventLongPress: (event) => _handleLongPress(event, ref, context),
@@ -431,7 +425,7 @@ class _WeekBody extends ConsumerWidget {
       builder: (_) => AddEventSheet(
         initialStartTime: startTime,
         initialEndTime: endTime,
-        initialDate: fmt(days[dayIndex]),
+        initialDate: formatDate(days[dayIndex]),
         weekDays: days,
         onSave: (name, start, end, date) =>
             ref.read(weekDataProvider(mondayStr).notifier).addTask(name, date, startTime: start, endTime: end),
@@ -487,11 +481,7 @@ class _AllDayRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: events.map((e) {
-                      final isDone = switch (e) {
-                        TaskEvent e => e.isDone,
-                        PlanTaskEvent e => e.isDone,
-                        CountdownEvent _ => false,
-                      };
+                      final isDone = e.isDone;
                       return GestureDetector(
                         onTap: () => onEventTap(e),
                         onLongPress: () => onEventLongPress?.call(e),
@@ -593,11 +583,7 @@ class _DayColumn extends StatelessWidget {
               final event = positioned.event;
               final top = event.startMinutes * _kPixelsPerMinute;
               final height = (event.durationMinutes * _kPixelsPerMinute).clamp(18.0, double.infinity);
-              final isDone = switch (event) {
-                TaskEvent e => e.isDone,
-                PlanTaskEvent e => e.isDone,
-                CountdownEvent _ => false,
-              };
+              final isDone = event.isDone;
 
               return Positioned(
                 top: top,

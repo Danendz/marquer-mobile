@@ -7,6 +7,7 @@ import 'package:marquer/api/models/calendar/plan_schedule.dart';
 import 'package:marquer/api/models/calendar/update_plan_request.dart';
 import 'package:marquer/providers/calendar/plans_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
+import 'package:marquer/utils/format.dart';
 
 class _TaskItem {
   final int? id;
@@ -16,9 +17,6 @@ class _TaskItem {
   String? endTime;
 
   _TaskItem({this.id, required this.name, required this.sortOrder, this.startTime, this.endTime});
-
-  String _fmtTime(TimeOfDay t) =>
-      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
   TimeOfDay? get startTimeOfDay {
     if (startTime == null) return null;
@@ -33,11 +31,11 @@ class _TaskItem {
   }
 
   void setStartTime(TimeOfDay? t) {
-    startTime = t != null ? _fmtTime(t) : null;
+    startTime = t != null ? formatTimeOfDay(t) : null;
   }
 
   void setEndTime(TimeOfDay? t) {
-    endTime = t != null ? _fmtTime(t) : null;
+    endTime = t != null ? formatTimeOfDay(t) : null;
   }
 }
 
@@ -144,9 +142,6 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
     super.dispose();
   }
 
-  String _formatDate(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
   PlanSchedule _buildSchedule() {
     return switch (_scheduleType) {
       _ScheduleType.daily => const DailySchedule(),
@@ -189,8 +184,8 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
     if (validTasks.isEmpty) return;
 
     final schedule = _buildSchedule();
-    final startDate = _formatDate(_startDate);
-    final endDate = _hasEndDate && _endDate != null ? _formatDate(_endDate!) : null;
+    final startDate = formatDate(_startDate);
+    final endDate = _hasEndDate && _endDate != null ? formatDate(_endDate!) : null;
 
     if (_isEditing) {
       final request = UpdatePlanRequest(

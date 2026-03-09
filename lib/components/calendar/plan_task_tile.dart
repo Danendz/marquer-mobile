@@ -4,6 +4,7 @@ import 'package:marquer/api/models/calendar/plan_for_date.dart';
 import 'package:marquer/components/shared/circle_checkbox.dart';
 import 'package:marquer/providers/calendar/day_plans_provider.dart';
 import 'package:marquer/utils/colors.dart';
+import 'package:marquer/utils/format.dart';
 
 class PlanTaskTile extends ConsumerWidget {
   final int planId;
@@ -67,7 +68,7 @@ class PlanTaskTile extends ConsumerWidget {
                     Icon(Icons.access_time, size: 12, color: colorScheme.onSurfaceVariant),
                     const SizedBox(width: 4),
                     Text(
-                      _formatTimeRange(task.startTime, task.endTime),
+                      formatTimeRange(task.startTime, task.endTime),
                       style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   ],
@@ -80,9 +81,4 @@ class PlanTaskTile extends ConsumerWidget {
     );
   }
 
-  String _formatTimeRange(String? start, String? end) {
-    if (start == null) return '';
-    if (end == null) return start;
-    return '$start – $end';
-  }
 }

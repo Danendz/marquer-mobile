@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/calendar/plan_for_date.dart';
 import 'package:marquer/api/services/calendar_service.dart';
 import 'package:marquer/providers/calendar/calendar_selected_date_provider.dart';
+import 'package:marquer/utils/format.dart';
 import 'package:marquer/services/toast_service.dart';
 
 final dayPlansProvider = AsyncNotifierProvider<DayPlansNotifier, List<PlanForDate>>(
@@ -12,20 +13,17 @@ final dayPlansProvider = AsyncNotifierProvider<DayPlansNotifier, List<PlanForDat
 class DayPlansNotifier extends AsyncNotifier<List<PlanForDate>> {
   final _service = CalendarService();
 
-  String _dateString(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
   @override
   Future<List<PlanForDate>> build() async {
     final selected = ref.watch(calendarSelectedDateProvider);
-    return _service.getPlansForDate(_dateString(selected));
+    return _service.getPlansForDate(formatDate(selected));
   }
 
   Future<void> toggleTask(int planId, int planTaskId) async {
     final current = state.asData?.value;
     if (current == null) return;
 
-    final date = _dateString(ref.read(calendarSelectedDateProvider));
+    final date = formatDate(ref.read(calendarSelectedDateProvider));
 
     // Optimistic toggle
     state = AsyncData([

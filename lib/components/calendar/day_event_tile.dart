@@ -10,6 +10,7 @@ import 'package:marquer/components/shared/task_edit_sheet.dart';
 import 'package:marquer/providers/calendar/calendar_day_events_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
 import 'package:marquer/utils/colors.dart';
+import 'package:marquer/utils/format.dart';
 
 class DayEventTile extends ConsumerStatefulWidget {
   final Task task;
@@ -127,7 +128,7 @@ class _DayEventTileState extends ConsumerState<DayEventTile> {
                     Icon(Icons.access_time, size: 12, color: colorScheme.onSurfaceVariant),
                     const SizedBox(width: 4),
                     Text(
-                      _formatTimeRange(widget.task.startTime, widget.task.endTime),
+                      formatTimeRange(widget.task.startTime, widget.task.endTime),
                       style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   ],
@@ -140,9 +141,4 @@ class _DayEventTileState extends ConsumerState<DayEventTile> {
     );
   }
 
-  String _formatTimeRange(String? start, String? end) {
-    if (start == null) return '';
-    if (end == null) return start;
-    return '$start – $end';
-  }
 }

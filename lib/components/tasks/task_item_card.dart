@@ -15,6 +15,7 @@ import 'package:marquer/providers/tasks/task_folders_provider.dart';
 import 'package:marquer/providers/tasks/tasks_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
 import 'package:marquer/utils/colors.dart';
+import 'package:marquer/utils/format.dart';
 
 class TaskItemCard extends ConsumerStatefulWidget {
   final Task task;
@@ -172,7 +173,7 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
                     const SizedBox(width: 4),
                     if (hasTime)
                       Text(
-                        _formatTimeRange(widget.task.startTime, widget.task.endTime),
+                        formatTimeRange(widget.task.startTime, widget.task.endTime),
                         style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                       ),
                     if (hasTime && hasDate) ...[
@@ -220,12 +221,6 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
         ),
       ),
     );
-  }
-
-  String _formatTimeRange(String? start, String? end) {
-    if (start == null) return '';
-    if (end == null) return start;
-    return '$start – $end';
   }
 
   String _formatDate(String date) {

@@ -19,6 +19,7 @@ import 'package:marquer/providers/calendar/countdowns_provider.dart';
 import 'package:marquer/providers/calendar/plans_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
 import 'package:marquer/utils/colors.dart';
+import 'package:marquer/utils/format.dart';
 
 enum _Tab { calendar, countdown, plans }
 
@@ -141,7 +142,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               },
               calendarBuilders: CalendarBuilders(
                 markerBuilder: (context, day, _) {
-                  final key = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+                  final key = formatDate(day);
                   final hasTask = datesWithIncomplete.contains(key);
                   final hasCountdown = countdownDates.contains(key);
                   final hasPlan = datesWithPlans.contains(key);
@@ -625,9 +626,6 @@ class _CountdownFormSheetState extends State<_CountdownFormSheet> {
     super.dispose();
   }
 
-  String _formatDate(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -643,7 +641,7 @@ class _CountdownFormSheetState extends State<_CountdownFormSheet> {
     final name = _nameController.text.trim();
     if (name.isEmpty || _selectedDate == null) return;
     Navigator.pop(context);
-    widget.onSave(name, _formatDate(_selectedDate!));
+    widget.onSave(name, formatDate(_selectedDate!));
   }
 
   @override

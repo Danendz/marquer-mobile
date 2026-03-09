@@ -8,6 +8,7 @@ import 'package:marquer/api/models/tasks/tasks/task_status.dart';
 import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
 import 'package:marquer/api/services/calendar_service.dart';
 import 'package:marquer/api/services/tasks_service.dart';
+import 'package:marquer/utils/format.dart';
 
 final weekDataProvider =
     AsyncNotifierProvider.family<WeekDataNotifier, WeekData, String>(
@@ -21,9 +22,6 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
   final _service = CalendarService();
   final _tasksService = TasksService();
 
-  String _fmt(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
   @override
   Future<WeekData> build() async {
     final link = ref.keepAlive();
@@ -32,7 +30,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
 
     final monday = DateTime.parse(mondayStr);
     final sunday = monday.add(const Duration(days: 6));
-    return _service.getWeekData(_fmt(monday), _fmt(sunday));
+    return _service.getWeekData(mondayStr, formatDate(sunday));
   }
 
   Future<void> togglePlanTask(int planTaskId, int planId, String date) async {
@@ -88,7 +86,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
       final list = List<Task>.from(updatedTasks[date] ?? []);
       if (!list.any((t) => t.id == task.id)) list.insert(0, task);
       updatedTasks[date] = list;
-      state = AsyncData(WeekData(tasks: updatedTasks, planTasks: latest.planTasks, countdowns: latest.countdowns));
+      state = AsyncData(latest.copyWith(tasks: updatedTasks));
     }
   }
 
@@ -125,7 +123,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
 
     final updatedTasks = Map<String, List<Task>>.from(current.tasks);
     updatedTasks[date] = [placeholder, ...(updatedTasks[date] ?? [])];
-    state = AsyncData(WeekData(tasks: updatedTasks, planTasks: current.planTasks, countdowns: current.countdowns));
+    state = AsyncData(current.copyWith(tasks: updatedTasks));
 
     try {
       final created = await _tasksService.createTask(
@@ -151,7 +149,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
       list.insert(0, replacement);
     }
     updatedTasks[date] = list;
-    return WeekData(tasks: updatedTasks, planTasks: data.planTasks, countdowns: data.countdowns);
+    return data.copyWith(tasks: updatedTasks);
   }
 
   WeekData _toggleInData(WeekData data, int planTaskId, int planId, String date, bool? forcedValue) {
@@ -165,10 +163,6 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
             t,
       ];
     }
-    return WeekData(
-      tasks: data.tasks,
-      planTasks: updatedPlanTasks,
-      countdowns: data.countdowns,
-    );
+    return data.copyWith(planTasks: updatedPlanTasks);
   }
 }
