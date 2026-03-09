@@ -10,9 +10,11 @@ import 'package:go_router/go_router.dart';
 import 'package:marquer/components/calendar/day_countdown_list.dart';
 import 'package:marquer/components/calendar/day_event_list.dart';
 import 'package:marquer/components/calendar/day_plan_list.dart';
+import 'package:marquer/components/calendar/week_view/week_view.dart';
 import 'package:marquer/providers/calendar/calendar_focused_month_provider.dart';
 import 'package:marquer/providers/calendar/calendar_overview_provider.dart';
 import 'package:marquer/providers/calendar/calendar_selected_date_provider.dart';
+import 'package:marquer/providers/calendar/calendar_view_mode_provider.dart';
 import 'package:marquer/providers/calendar/countdowns_provider.dart';
 import 'package:marquer/providers/calendar/plans_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
@@ -44,10 +46,21 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       for (final c in countdownsAsync.asData?.value ?? []) c.targetDate,
     };
 
+    final viewMode = ref.watch(calendarViewModeProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Calendar'),
         actions: [
+          if (_tab == _Tab.calendar)
+            IconButton(
+              icon: Icon(
+                viewMode == CalendarViewMode.week
+                    ? Icons.calendar_view_month
+                    : Icons.view_week_outlined,
+              ),
+              onPressed: () => ref.read(calendarViewModeProvider.notifier).toggle(),
+            ),
           SegmentedButton<_Tab>(
             segments: const [
               ButtonSegment(value: _Tab.calendar, icon: Icon(Icons.calendar_month)),
@@ -76,7 +89,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         child: KeyedSubtree(
           key: ValueKey(_tab),
           child: switch (_tab) {
-            _Tab.calendar => _buildCalendarView(colors, selectedDate, focusedMonth, datesWithIncomplete, datesWithPlans, countdownDates),
+            _Tab.calendar => viewMode == CalendarViewMode.week
+              ? const WeekView()
+              : _buildCalendarView(colors, selectedDate, focusedMonth, datesWithIncomplete, datesWithPlans, countdownDates),
             _Tab.countdown => _buildCountdownView(),
             _Tab.plans => _buildPlansView(),
           },

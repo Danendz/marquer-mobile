@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:marquer/api/models/tasks/categories/task_category.dart';
 import 'package:marquer/api/models/tasks/tasks/task.dart';
 import 'package:marquer/api/models/tasks/tasks/task_status.dart';
+import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
+import 'package:marquer/components/shared/circle_checkbox.dart';
+import 'package:marquer/components/shared/status_chip.dart';
+import 'package:marquer/components/shared/task_edit_sheet.dart';
 import 'package:marquer/providers/tasks/task_filter.dart';
 import 'package:marquer/providers/tasks/task_filter_provider.dart';
+import 'package:marquer/providers/tasks/task_folders_provider.dart';
 import 'package:marquer/providers/tasks/tasks_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
 import 'package:marquer/utils/colors.dart';
@@ -46,7 +53,7 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
 
     switch (result) {
       case 'edit':
-        _showRenameDialog();
+        _showEditSheet();
         break;
       case 'delete':
         ref.read(tasksProvider.notifier).deleteTask(widget.task);
@@ -60,53 +67,56 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
     }
   }
 
-  Future<void> _showRenameDialog() async {
-    final controller = TextEditingController(text: widget.task.name);
-    try {
-      await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Rename Task'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(hintText: 'Task name'),
-            onSubmitted: (value) {
-              if (value.trim().isNotEmpty) {
-                ref.read(tasksProvider.notifier).renameTask(widget.task, value.trim());
-                Navigator.pop(context);
-              }
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                final value = controller.text.trim();
-                if (value.isNotEmpty) {
-                  ref.read(tasksProvider.notifier).renameTask(widget.task, value);
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      controller.dispose();
-    }
+  void _showEditSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => TaskEditSheet(
+        task: widget.task,
+        onSave: (name, startTime, endTime, clearStartTime, clearEndTime) {
+          final request = UpdateTaskRequest(
+            name: name != widget.task.name ? name : null,
+            startTime: startTime,
+            endTime: endTime,
+            clearStartTime: clearStartTime,
+            clearEndTime: clearEndTime,
+          );
+          final optimistic = widget.task.copyWith(
+            name: name,
+            startTime: startTime,
+            endTime: endTime,
+          );
+          ref.read(tasksProvider.notifier).updateTask(widget.task, request, optimistic);
+        },
+      ),
+    );
+  }
+
+  TaskCategory? _findCategory(WidgetRef ref, int? id) {
+    if (id == null) return null;
+    final foldersAsync = ref.watch(taskFoldersProvider);
+    return foldersAsync.asData?.value
+        .expand((f) => f.categories)
+        .where((c) => c.id == id)
+        .firstOrNull;
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = getColors(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     final filter = ref.watch(taskFilterProvider);
     final isDeletedView = filter is RecentlyDeletedFilter;
+
+    final category = _findCategory(ref, widget.task.taskCategoryId);
+
+    final hasTime = widget.task.startTime != null;
+    final hasDate = widget.task.date != null;
+    final hasSubtitle = hasTime || hasDate;
+    final hasCategory = category != null;
 
     return GestureDetector(
       onTap: (isDeletedView || _isCancelled) ? null : () => ref.read(tasksProvider.notifier).toggleTaskStatus(widget.task),
@@ -118,62 +128,122 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
           color: colors.surfaceContainer,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            _CircleCheckbox(
-              checked: _isDone,
-              onTap: _isCancelled
-                  ? null
-                  : () => ref.read(tasksProvider.notifier).toggleTaskStatus(widget.task),
-              color: colors.primary,
+            // Row 1: checkbox + name + status chip
+            Row(
+              children: [
+                CircleCheckbox(
+                  checked: _isDone,
+                  onTap: _isCancelled
+                      ? null
+                      : () => ref.read(tasksProvider.notifier).toggleTaskStatus(widget.task),
+                  color: colors.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.task.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      decoration: _isDone ? TextDecoration.lineThrough : null,
+                      color: _isDone
+                          ? colorScheme.onSurface.withValues(alpha: 0.5)
+                          : colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                StatusChip(status: widget.task.status, colorScheme: colorScheme),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                widget.task.name,
-                style: TextStyle(
-                  fontSize: 16,
-                  decoration: _isDone ? TextDecoration.lineThrough : null,
-                  color: _isDone
-                      ? colors.onSurface.withValues(alpha: 0.5)
-                      : colors.onSurface,
+            // Row 2: time + date (only if present)
+            if (hasSubtitle) ...[
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 36),
+                child: Row(
+                  children: [
+                    Icon(Icons.access_time, size: 12, color: colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 4),
+                    if (hasTime)
+                      Text(
+                        _formatTimeRange(widget.task.startTime, widget.task.endTime),
+                        style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                      ),
+                    if (hasTime && hasDate) ...[
+                      Text(
+                        ' · ',
+                        style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                    if (hasDate)
+                      Text(
+                        _formatDate(widget.task.date!),
+                        style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                      ),
+                  ],
                 ),
               ),
-            ),
+            ],
+            // Row 3: category (only if present)
+            if (hasCategory) ...[
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 36),
+                child: Row(
+                  children: [
+                    Icon(Icons.folder_outlined, size: 12, color: colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 4),
+                    Text(
+                      category.name,
+                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _parseColor(category.color),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
-}
 
-class _CircleCheckbox extends StatelessWidget {
-  final bool checked;
-  final VoidCallback? onTap;
-  final Color color;
+  String _formatTimeRange(String? start, String? end) {
+    if (start == null) return '';
+    if (end == null) return start;
+    return '$start – $end';
+  }
 
-  const _CircleCheckbox({
-    required this.checked,
-    required this.onTap,
-    required this.color,
-  });
+  String _formatDate(String date) {
+    try {
+      final dt = DateTime.parse(date);
+      return DateFormat('MMM d').format(dt);
+    } catch (_) {
+      return date;
+    }
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: checked ? color : Colors.transparent,
-          border: checked ? null : Border.all(color: color, width: 2),
-        ),
-        child: checked
-            ? const Icon(Icons.check, size: 16, color: Colors.white)
-            : null,
-      ),
-    );
+  Color _parseColor(String hex) {
+    try {
+      final cleaned = hex.replaceFirst('#', '');
+      final value = int.parse(cleaned.length == 6 ? 'FF$cleaned' : cleaned, radix: 16);
+      return Color(value);
+    } catch (_) {
+      return Colors.grey;
+    }
   }
 }

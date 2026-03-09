@@ -121,6 +121,28 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
     }
   }
 
+  Future<void> updateTask(Task task, UpdateTaskRequest request, Task optimisticTask) async {
+    final current = state.asData?.value;
+    if (current == null) return;
+
+    state = AsyncData([
+      for (final t in current)
+        if (t.id == task.id) optimisticTask else t,
+    ]);
+
+    try {
+      await _service.updateTask(task.id.toString(), request);
+    } catch (e) {
+      if (!ref.mounted) return;
+      state = AsyncData([
+        for (final t in state.asData?.value ?? current)
+          if (t.id == task.id) task else t,
+      ]);
+      debugPrint(e.toString());
+      ToastService.showError("Unable to update task! Try again later");
+    }
+  }
+
   Future<void> deleteTask(Task task) async {
     final current = state.asData?.value;
     if (current == null) return;

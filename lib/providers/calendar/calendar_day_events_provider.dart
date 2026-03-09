@@ -26,16 +26,18 @@ class CalendarDayEventsNotifier extends AsyncNotifier<List<Task>> {
     return _service.getTasks(GetTasksRequest(date: _dateString(selected)));
   }
 
-  Future<void> addEvent(String name) async {
+  Future<void> addEvent(String name, {String? startTime, String? endTime, String? date}) async {
     final current = state.asData?.value;
     if (current == null) return;
-    final selected = ref.read(calendarSelectedDateProvider);
+    final taskDate = date ?? _dateString(ref.read(calendarSelectedDateProvider));
 
     final optimistic = Task(
       id: -DateTime.now().millisecondsSinceEpoch,
       name: name,
       status: TaskStatus.draft,
-      date: _dateString(selected),
+      date: taskDate,
+      startTime: startTime,
+      endTime: endTime,
       createdAt: DateTime.now().toIso8601String(),
       updatedAt: DateTime.now().toIso8601String(),
     );
@@ -44,7 +46,7 @@ class CalendarDayEventsNotifier extends AsyncNotifier<List<Task>> {
 
     try {
       final created = await _service.createTask(
-        CreateTaskRequest(name: name, date: _dateString(selected)),
+        CreateTaskRequest(name: name, date: taskDate, startTime: startTime, endTime: endTime),
       );
       if (!ref.mounted) return;
       state = AsyncData([
@@ -102,6 +104,30 @@ class CalendarDayEventsNotifier extends AsyncNotifier<List<Task>> {
       state = AsyncData(latest.any((t) => t.id == task.id) ? latest : [task, ...latest]);
       debugPrint(e.toString());
       ToastService.showError('Unable to delete event! Try again later');
+    }
+  }
+
+  Future<void> updateEvent(Task task, UpdateTaskRequest request, Task optimistic) async {
+    final current = state.asData?.value;
+    if (current == null) return;
+
+    state = AsyncData([
+      for (final t in current) if (t.id == task.id) optimistic else t,
+    ]);
+
+    try {
+      final updated = await _service.updateTask(task.id.toString(), request);
+      if (!ref.mounted) return;
+      state = AsyncData([
+        for (final t in state.asData!.value) if (t.id == task.id) updated else t,
+      ]);
+    } catch (e) {
+      if (!ref.mounted) return;
+      state = AsyncData([
+        for (final t in state.asData?.value ?? current) if (t.id == task.id) task else t,
+      ]);
+      debugPrint(e.toString());
+      ToastService.showError('Unable to update event! Try again later');
     }
   }
 

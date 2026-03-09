@@ -8,6 +8,7 @@ import 'package:marquer/api/models/calendar/plan.dart';
 import 'package:marquer/api/models/calendar/plan_for_date.dart';
 import 'package:marquer/api/models/calendar/update_countdown_request.dart';
 import 'package:marquer/api/models/calendar/update_plan_request.dart';
+import 'package:marquer/api/models/calendar/week_data.dart';
 import 'package:marquer/api/models/model_parser.dart';
 
 final getIt = GetIt.instance;
@@ -91,6 +92,15 @@ final class CalendarService {
       '/calendar/plans/for-date',
       query: {'date': date},
       fromJsonT: (json) => ModelParser.listFromJson(json, PlanForDate.fromJson),
+    );
+    return resp.data;
+  }
+
+  Future<WeekData> getWeekData(String from, String to) async {
+    final resp = await api.get<WeekData>(
+      '/calendar/week',
+      query: {'from': from, 'to': to},
+      fromJsonT: (json) => ModelParser.objectFromJson(json, WeekData.fromJson),
     );
     return resp.data;
   }

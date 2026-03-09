@@ -3,7 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/providers/calendar/calendar_day_events_provider.dart';
 
 class AddEventSheet extends ConsumerStatefulWidget {
-  const AddEventSheet({super.key});
+  final TimeOfDay? initialStartTime;
+  final TimeOfDay? initialEndTime;
+  final String? initialDate;
+  final List<DateTime>? weekDays;
+  final void Function(String name, String? startTime, String? endTime, String date)? onSave;
+
+  const AddEventSheet({
+    super.key,
+    this.initialStartTime,
+    this.initialEndTime,
+    this.initialDate,
+    this.weekDays,
+    this.onSave,
+  });
 
   @override
   ConsumerState<AddEventSheet> createState() => _AddEventSheetState();
@@ -11,6 +24,21 @@ class AddEventSheet extends ConsumerStatefulWidget {
 
 class _AddEventSheetState extends ConsumerState<AddEventSheet> {
   final _controller = TextEditingController();
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
+  DateTime? _selectedDate;
+
+  static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  @override
+  void initState() {
+    super.initState();
+    _startTime = widget.initialStartTime;
+    _endTime = widget.initialEndTime;
+    if (widget.initialDate != null) {
+      _selectedDate = DateTime.parse(widget.initialDate!);
+    }
+  }
 
   @override
   void dispose() {
@@ -18,16 +46,66 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
     super.dispose();
   }
 
+  String _fmtTime(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  String _fmtDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  Future<void> _pickStartTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _startTime ?? TimeOfDay.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        _startTime = picked;
+        if (_endTime == null ||
+            _endTime!.hour * 60 + _endTime!.minute <= picked.hour * 60 + picked.minute) {
+          final endMinutes = picked.hour * 60 + picked.minute + 60;
+          _endTime = TimeOfDay(hour: (endMinutes ~/ 60) % 24, minute: endMinutes % 60);
+        }
+      });
+    }
+  }
+
+  Future<void> _pickEndTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _endTime ?? TimeOfDay.now(),
+    );
+    if (picked != null) setState(() => _endTime = picked);
+  }
+
+  void _clearTime() => setState(() {
+        _startTime = null;
+        _endTime = null;
+      });
+
   Future<void> _save() async {
     final name = _controller.text.trim();
     if (name.isEmpty) return;
     Navigator.pop(context);
-    await ref.read(calendarDayEventsProvider.notifier).addEvent(name);
+
+    final startStr = _startTime != null ? _fmtTime(_startTime!) : null;
+    final endStr = _endTime != null ? _fmtTime(_endTime!) : null;
+
+    if (widget.onSave != null && _selectedDate != null) {
+      widget.onSave!(name, startStr, endStr, _fmtDate(_selectedDate!));
+    } else {
+      await ref.read(calendarDayEventsProvider.notifier).addEvent(
+            name,
+            startTime: startStr,
+            endTime: endStr,
+            date: widget.initialDate,
+          );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final hasTime = _startTime != null;
 
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -56,11 +134,55 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
                 ),
                 Text('Add Event', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 12),
+                if (widget.weekDays != null) ...[
+                  _DaySelector(
+                    days: widget.weekDays!,
+                    selected: _selectedDate,
+                    colorScheme: colorScheme,
+                    dayLabels: _dayLabels,
+                    onSelect: (d) => setState(() => _selectedDate = d),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 TextField(
                   controller: _controller,
                   autofocus: true,
                   decoration: const InputDecoration(hintText: 'Event name'),
                   onSubmitted: (_) => _save(),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _pickStartTime,
+                        icon: const Icon(Icons.access_time, size: 16),
+                        label: Text(
+                          _startTime != null ? _fmtTime(_startTime!) : 'Start time',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _startTime != null ? _pickEndTime : null,
+                        icon: const Icon(Icons.access_time_filled, size: 16),
+                        label: Text(
+                          _endTime != null ? _fmtTime(_endTime!) : 'End time',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ),
+                    if (hasTime) ...[
+                      const SizedBox(width: 4),
+                      IconButton(
+                        onPressed: _clearTime,
+                        icon: const Icon(Icons.close, size: 18),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 16),
                 FilledButton(onPressed: _save, child: const Text('Save')),
@@ -69,6 +191,69 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DaySelector extends StatelessWidget {
+  final List<DateTime> days;
+  final DateTime? selected;
+  final ColorScheme colorScheme;
+  final List<String> dayLabels;
+  final void Function(DateTime) onSelect;
+
+  const _DaySelector({
+    required this.days,
+    required this.selected,
+    required this.colorScheme,
+    required this.dayLabels,
+    required this.onSelect,
+  });
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(days.length, (i) {
+        final day = days[i];
+        final isSelected = selected != null && _isSameDay(day, selected!);
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => onSelect(day),
+            child: Column(
+              children: [
+                Text(
+                  dayLabels[i],
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected ? colorScheme.primary : Colors.transparent,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '${day.day}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
     );
   }
 }

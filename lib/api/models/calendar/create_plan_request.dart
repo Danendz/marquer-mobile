@@ -3,10 +3,22 @@ import 'package:marquer/api/models/calendar/plan_schedule.dart';
 class CreatePlanTaskRequest {
   final String name;
   final int sortOrder;
+  final String? startTime;
+  final String? endTime;
 
-  const CreatePlanTaskRequest({required this.name, required this.sortOrder});
+  const CreatePlanTaskRequest({
+    required this.name,
+    required this.sortOrder,
+    this.startTime,
+    this.endTime,
+  });
 
-  Map<String, dynamic> toJson() => {'name': name, 'sort_order': sortOrder};
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'sort_order': sortOrder,
+    if (startTime != null) 'start_time': startTime,
+    if (endTime != null) 'end_time': endTime,
+  };
 }
 
 class CreatePlanRequest {

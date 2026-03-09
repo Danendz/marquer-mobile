@@ -6,13 +6,39 @@ import 'package:marquer/api/models/calendar/plan.dart';
 import 'package:marquer/api/models/calendar/plan_schedule.dart';
 import 'package:marquer/api/models/calendar/update_plan_request.dart';
 import 'package:marquer/providers/calendar/plans_provider.dart';
+import 'package:marquer/utils/action_sheet.dart';
 
 class _TaskItem {
   final int? id;
   String name;
   int sortOrder;
+  String? startTime;
+  String? endTime;
 
-  _TaskItem({this.id, required this.name, required this.sortOrder});
+  _TaskItem({this.id, required this.name, required this.sortOrder, this.startTime, this.endTime});
+
+  String _fmtTime(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  TimeOfDay? get startTimeOfDay {
+    if (startTime == null) return null;
+    final parts = startTime!.split(':');
+    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+  }
+
+  TimeOfDay? get endTimeOfDay {
+    if (endTime == null) return null;
+    final parts = endTime!.split(':');
+    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+  }
+
+  void setStartTime(TimeOfDay? t) {
+    startTime = t != null ? _fmtTime(t) : null;
+  }
+
+  void setEndTime(TimeOfDay? t) {
+    endTime = t != null ? _fmtTime(t) : null;
+  }
 }
 
 enum _ScheduleType { daily, weekly, interval, monthlyDates, monthlyWeekday }
@@ -42,6 +68,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
   DateTime? _endDate;
   bool _hasEndDate = false;
   late List<_TaskItem> _tasks;
+  bool _isReorderMode = false;
 
   bool get _isEditing => widget.plan != null;
 
@@ -57,7 +84,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
 
     if (plan != null) {
       _tasks = plan.tasks
-          .map((t) => _TaskItem(id: t.id, name: t.name, sortOrder: t.sortOrder))
+          .map((t) => _TaskItem(id: t.id, name: t.name, sortOrder: t.sortOrder, startTime: t.startTime, endTime: t.endTime))
           .toList();
       _initScheduleFromPlan(plan.schedule);
     } else {
@@ -175,6 +202,8 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
           id: e.value.id,
           name: e.value.name.trim(),
           sortOrder: e.key,
+          startTime: e.value.startTime,
+          endTime: e.value.endTime,
         )).toList(),
       );
       ref.read(plansProvider.notifier).edit(widget.plan!, request);
@@ -187,6 +216,8 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
         tasks: validTasks.asMap().entries.map((e) => CreatePlanTaskRequest(
           name: e.value.name.trim(),
           sortOrder: e.key,
+          startTime: e.value.startTime,
+          endTime: e.value.endTime,
         )).toList(),
       );
       ref.read(plansProvider.notifier).add(request);
@@ -270,13 +301,19 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
           Row(
             children: [
               Expanded(child: Text('Tasks', style: Theme.of(context).textTheme.titleSmall)),
-              TextButton.icon(
-                onPressed: () => setState(() {
-                  _tasks.add(_TaskItem(name: '', sortOrder: _tasks.length));
-                }),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add'),
-              ),
+              if (_isReorderMode)
+                TextButton(
+                  onPressed: () => setState(() => _isReorderMode = false),
+                  child: const Text('Done'),
+                )
+              else
+                TextButton.icon(
+                  onPressed: () => setState(() {
+                    _tasks.add(_TaskItem(name: '', sortOrder: _tasks.length));
+                  }),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add'),
+                ),
             ],
           ),
           const SizedBox(height: 8),
@@ -423,6 +460,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
     return ReorderableListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
+      buildDefaultDragHandles: false,
       itemCount: _tasks.length,
       onReorder: (oldIndex, newIndex) {
         setState(() {
@@ -436,22 +474,135 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
       },
       itemBuilder: (context, index) {
         final task = _tasks[index];
-        return ListTile(
+        return GestureDetector(
           key: ValueKey(task),
-          leading: const Icon(Icons.drag_handle),
-          title: TextField(
-            controller: TextEditingController(text: task.name),
-            decoration: InputDecoration(hintText: 'Task ${index + 1}'),
-            onChanged: (v) => task.name = v,
+          onLongPress: _isReorderMode
+              ? null
+              : () async {
+                  final result = await showAppActionSheet(context, const [
+                    AppAction(value: 'reorder', icon: Icons.reorder, label: 'Reorder'),
+                  ]);
+                  if (result == 'reorder') setState(() => _isReorderMode = true);
+                },
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: colors.surfaceContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_isReorderMode)
+                  ReorderableDragStartListener(
+                    index: index,
+                    child: const Padding(
+                      padding: EdgeInsets.only(top: 14),
+                      child: Icon(Icons.drag_handle, size: 20),
+                    ),
+                  ),
+                if (_isReorderMode) const SizedBox(width: 8),
+                Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: TextEditingController(text: task.name),
+                          decoration: InputDecoration(hintText: 'Task ${index + 1}'),
+                          onChanged: (v) => task.name = v,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            _TimeChip(
+                              label: task.startTime ?? 'Start',
+                              hasValue: task.startTime != null,
+                              onTap: () async {
+                                final picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: task.startTimeOfDay ?? TimeOfDay.now(),
+                                );
+                                if (picked != null) {
+                                  setState(() {
+                                    task.setStartTime(picked);
+                                    final endMin = picked.hour * 60 + picked.minute + 60;
+                                    if (task.endTime == null) {
+                                      task.setEndTime(TimeOfDay(hour: (endMin ~/ 60) % 24, minute: endMin % 60));
+                                    }
+                                  });
+                                }
+                              },
+                            ),
+                            if (task.startTime != null) ...[
+                              const SizedBox(width: 6),
+                              _TimeChip(
+                                label: task.endTime ?? 'End',
+                                hasValue: task.endTime != null,
+                                onTap: () async {
+                                  final picked = await showTimePicker(
+                                    context: context,
+                                    initialTime: task.endTimeOfDay ?? TimeOfDay.now(),
+                                  );
+                                  if (picked != null) setState(() => task.setEndTime(picked));
+                                },
+                              ),
+                              const SizedBox(width: 4),
+                              GestureDetector(
+                                onTap: () => setState(() {
+                                  task.setStartTime(null);
+                                  task.setEndTime(null);
+                                }),
+                                child: Icon(Icons.close, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                      ],
+                    ),
+                  ),
+                  if (_tasks.length > 1)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 20),
+                      onPressed: () => setState(() => _tasks.removeAt(index)),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                ],
+              ),
           ),
-          trailing: _tasks.length > 1
-              ? IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () => setState(() => _tasks.removeAt(index)),
-                )
-              : null,
         );
       },
+    );
+  }
+}
+
+class _TimeChip extends StatelessWidget {
+  final String label;
+  final bool hasValue;
+  final VoidCallback onTap;
+
+  const _TimeChip({required this.label, required this.hasValue, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: hasValue ? colors.primaryContainer : colors.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: hasValue ? colors.onPrimaryContainer : colors.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
     );
   }
 }

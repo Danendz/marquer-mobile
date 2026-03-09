@@ -2,12 +2,16 @@ class PlanTaskForDate {
   final int id;
   final String name;
   final int sortOrder;
+  final String? startTime;
+  final String? endTime;
   final bool isCompleted;
 
   const PlanTaskForDate({
     required this.id,
     required this.name,
     required this.sortOrder,
+    this.startTime,
+    this.endTime,
     required this.isCompleted,
   });
 
@@ -15,6 +19,8 @@ class PlanTaskForDate {
     id: json['id'] as int,
     name: json['name'] as String,
     sortOrder: json['sort_order'] as int,
+    startTime: json['start_time'] as String?,
+    endTime: json['end_time'] as String?,
     isCompleted: json['is_completed'] as bool,
   );
 
@@ -22,6 +28,8 @@ class PlanTaskForDate {
     id: id,
     name: name,
     sortOrder: sortOrder,
+    startTime: startTime,
+    endTime: endTime,
     isCompleted: isCompleted ?? this.isCompleted,
   );
 }

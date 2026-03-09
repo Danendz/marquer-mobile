@@ -4,13 +4,23 @@ class UpdatePlanTaskRequest {
   final int? id;
   final String name;
   final int sortOrder;
+  final String? startTime;
+  final String? endTime;
 
-  const UpdatePlanTaskRequest({this.id, required this.name, required this.sortOrder});
+  const UpdatePlanTaskRequest({
+    this.id,
+    required this.name,
+    required this.sortOrder,
+    this.startTime,
+    this.endTime,
+  });
 
   Map<String, dynamic> toJson() => {
     if (id != null) 'id': id,
     'name': name,
     'sort_order': sortOrder,
+    if (startTime != null) 'start_time': startTime,
+    if (endTime != null) 'end_time': endTime,
   };
 }
 

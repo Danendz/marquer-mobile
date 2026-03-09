@@ -3,6 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/tasks/tasks/task.dart';
 import 'package:marquer/api/models/tasks/tasks/task_status.dart';
+import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
+import 'package:marquer/components/shared/circle_checkbox.dart';
+import 'package:marquer/components/shared/status_chip.dart';
+import 'package:marquer/components/shared/task_edit_sheet.dart';
 import 'package:marquer/providers/calendar/calendar_day_events_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
 import 'package:marquer/utils/colors.dart';
@@ -32,53 +36,45 @@ class _DayEventTileState extends ConsumerState<DayEventTile> {
 
     switch (result) {
       case 'edit':
-        _showRenameDialog();
+        _showEditSheet();
       case 'delete':
         ref.read(calendarDayEventsProvider.notifier).deleteEvent(widget.task);
     }
   }
 
-  Future<void> _showRenameDialog() async {
-    final controller = TextEditingController(text: widget.task.name);
-    try {
-      await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Rename Event'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(hintText: 'Event name'),
-            onSubmitted: (value) {
-              if (value.trim().isNotEmpty) {
-                ref.read(calendarDayEventsProvider.notifier).renameEvent(widget.task, value.trim());
-                Navigator.pop(context);
-              }
-            },
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            TextButton(
-              onPressed: () {
-                final value = controller.text.trim();
-                if (value.isNotEmpty) {
-                  ref.read(calendarDayEventsProvider.notifier).renameEvent(widget.task, value);
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      controller.dispose();
-    }
+  void _showEditSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => TaskEditSheet(
+        task: widget.task,
+        onSave: (name, startTime, endTime, clearStartTime, clearEndTime) {
+          final request = UpdateTaskRequest(
+            name: name != widget.task.name ? name : null,
+            startTime: startTime,
+            endTime: endTime,
+            clearStartTime: clearStartTime,
+            clearEndTime: clearEndTime,
+          );
+          final optimistic = widget.task.copyWith(
+            name: name,
+            startTime: startTime,
+            endTime: endTime,
+          );
+          ref.read(calendarDayEventsProvider.notifier).updateEvent(widget.task, request, optimistic);
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = getColors(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    final hasTime = widget.task.startTime != null;
 
     return GestureDetector(
       onTap: () => ref.read(calendarDayEventsProvider.notifier).toggleEvent(widget.task),
@@ -90,52 +86,63 @@ class _DayEventTileState extends ConsumerState<DayEventTile> {
           color: colors.surfaceContainer,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            _CircleCheckbox(
-              checked: _isDone,
-              onTap: () => ref.read(calendarDayEventsProvider.notifier).toggleEvent(widget.task),
-              color: colors.primary,
+            // Row 1: checkbox + name + status chip
+            Row(
+              children: [
+                CircleCheckbox(
+                  checked: _isDone,
+                  onTap: () => ref.read(calendarDayEventsProvider.notifier).toggleEvent(widget.task),
+                  color: colors.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.task.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      decoration: _isDone ? TextDecoration.lineThrough : null,
+                      color: _isDone
+                          ? colorScheme.onSurface.withValues(alpha: 0.5)
+                          : colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                StatusChip(status: widget.task.status, colorScheme: colorScheme),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                widget.task.name,
-                style: TextStyle(
-                  fontSize: 16,
-                  decoration: _isDone ? TextDecoration.lineThrough : null,
-                  color: _isDone ? colors.onSurface.withValues(alpha: 0.5) : colors.onSurface,
+            // Row 2: time range (only if set)
+            if (hasTime) ...[
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 36),
+                child: Row(
+                  children: [
+                    Icon(Icons.access_time, size: 12, color: colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatTimeRange(widget.task.startTime, widget.task.endTime),
+                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                    ),
+                  ],
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
     );
   }
-}
 
-class _CircleCheckbox extends StatelessWidget {
-  final bool checked;
-  final VoidCallback? onTap;
-  final Color color;
-
-  const _CircleCheckbox({required this.checked, required this.onTap, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: checked ? color : Colors.transparent,
-          border: checked ? null : Border.all(color: color, width: 2),
-        ),
-        child: checked ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
-      ),
-    );
+  String _formatTimeRange(String? start, String? end) {
+    if (start == null) return '';
+    if (end == null) return start;
+    return '$start – $end';
   }
 }
