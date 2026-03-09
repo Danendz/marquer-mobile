@@ -548,6 +548,15 @@ class TimerNotifier extends Notifier<TimerState> {
     final cycles = state.completedCycles;
     state = TimerState(mode: TimerMode.countUp);
     if (elapsed < 60) {
+      if (session != null) {
+        try {
+          await _service.cancelSession(session.id);
+          ref.invalidate(studyStatsProvider);
+          ref.invalidate(studySessionsProvider);
+        } catch (e) {
+          debugPrint(e.toString());
+        }
+      }
       ToastService.showError('Study time under 1 minute does not count');
       return;
     }
