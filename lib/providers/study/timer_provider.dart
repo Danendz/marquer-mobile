@@ -537,6 +537,15 @@ class TimerNotifier extends Notifier<TimerState> {
     }
   }
 
+  void _resetTimerState() {
+    _ticker?.cancel();
+    WakelockPlus.disable();
+    unawaited(clearTimerBgState());
+    unawaited(stopTimerForegroundService());
+    _clearLocal();
+    state = TimerState(mode: TimerMode.countUp);
+  }
+
   Future<void> complete() async {
     final session = state.serverSession;
     final elapsed = state.elapsedSeconds;
@@ -554,22 +563,12 @@ class TimerNotifier extends Notifier<TimerState> {
           return;
         }
       }
-      _ticker?.cancel();
-      WakelockPlus.disable();
-      unawaited(clearTimerBgState());
-      unawaited(stopTimerForegroundService());
-      _clearLocal();
-      state = TimerState(mode: TimerMode.countUp);
+      _resetTimerState();
       ToastService.showError('Study time under 1 minute does not count');
       return;
     }
 
-    _ticker?.cancel();
-    WakelockPlus.disable();
-    unawaited(clearTimerBgState());
-    unawaited(stopTimerForegroundService());
-    _clearLocal();
-    state = TimerState(mode: TimerMode.countUp);
+    _resetTimerState();
     if (session != null) {
       try {
         await _service.completeSession(
@@ -588,13 +587,8 @@ class TimerNotifier extends Notifier<TimerState> {
   }
 
   Future<void> cancel() async {
-    _ticker?.cancel();
-    WakelockPlus.disable();
-    unawaited(clearTimerBgState());
-    unawaited(stopTimerForegroundService());
-    _clearLocal();
     final session = state.serverSession;
-    state = TimerState(mode: TimerMode.countUp);
+    _resetTimerState();
     if (session != null) {
       try {
         await _service.cancelSession(session.id);
