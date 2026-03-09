@@ -538,15 +538,10 @@ class TimerNotifier extends Notifier<TimerState> {
   }
 
   Future<void> complete() async {
-    _ticker?.cancel();
-    WakelockPlus.disable();
-    unawaited(clearTimerBgState());
-    unawaited(stopTimerForegroundService());
-    _clearLocal();
     final session = state.serverSession;
     final elapsed = state.elapsedSeconds;
     final cycles = state.completedCycles;
-    state = TimerState(mode: TimerMode.countUp);
+
     if (elapsed < 60) {
       if (session != null) {
         try {
@@ -555,11 +550,26 @@ class TimerNotifier extends Notifier<TimerState> {
           ref.invalidate(studySessionsProvider);
         } catch (e) {
           debugPrint(e.toString());
+          ToastService.showError('Failed to cancel session. Please try again.');
+          return;
         }
       }
+      _ticker?.cancel();
+      WakelockPlus.disable();
+      unawaited(clearTimerBgState());
+      unawaited(stopTimerForegroundService());
+      _clearLocal();
+      state = TimerState(mode: TimerMode.countUp);
       ToastService.showError('Study time under 1 minute does not count');
       return;
     }
+
+    _ticker?.cancel();
+    WakelockPlus.disable();
+    unawaited(clearTimerBgState());
+    unawaited(stopTimerForegroundService());
+    _clearLocal();
+    state = TimerState(mode: TimerMode.countUp);
     if (session != null) {
       try {
         await _service.completeSession(
