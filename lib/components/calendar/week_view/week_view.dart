@@ -8,9 +8,11 @@ import 'package:marquer/api/models/calendar/week_data.dart';
 import 'package:marquer/api/models/tasks/tasks/task.dart';
 import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
 import 'package:marquer/components/calendar/add_event_sheet.dart';
+import 'package:marquer/components/calendar/calendar_settings_sheet.dart';
 import 'package:marquer/components/calendar/week_view/week_event.dart';
 import 'package:marquer/components/shared/task_edit_sheet.dart';
 import 'package:marquer/providers/calendar/calendar_selected_date_provider.dart';
+import 'package:marquer/providers/calendar/calendar_settings_provider.dart';
 import 'package:marquer/providers/calendar/week_data_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
 import 'package:marquer/utils/format.dart';
@@ -161,12 +163,30 @@ class _DayHeaders extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedStr = formatDate(selected);
     return Container(
-      padding: const EdgeInsets.only(left: _kTimeGutter),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: colorScheme.outlineVariant, width: 0.5)),
       ),
       child: Row(
-        children: List.generate(7, (i) {
+        children: [
+          SizedBox(
+            width: _kTimeGutter,
+            child: Center(
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: Icon(Icons.settings_outlined, size: 22, color: colorScheme.onSurface.withValues(alpha: 0.4)),
+                onPressed: () => showModalBottomSheet(
+                  context: context,
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  builder: (_) => const CalendarSettingsSheet(),
+                ),
+              ),
+            ),
+          ),
+          ...List.generate(7, (i) {
           final day = days[i];
           final dateStr = formatDate(day);
           final isToday = dateStr == today;
@@ -218,6 +238,7 @@ class _DayHeaders extends ConsumerWidget {
             ),
           );
         }),
+        ],
       ),
     );
   }
@@ -252,11 +273,20 @@ class _WeekBody extends ConsumerWidget {
       events.add(CountdownEvent(cd, colors.primary));
     }
 
+    // Sort: all-day first, then by startMinutes ascending
+    events.sort((a, b) {
+      if (a.isAllDay && b.isAllDay) return 0;
+      if (a.isAllDay) return -1;
+      if (b.isAllDay) return 1;
+      return a.startMinutes.compareTo(b.startMinutes);
+    });
+
     return events;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hourInterval = ref.watch(calendarHourIntervalProvider);
     final allDayEventsByDay = <List<WeekEvent>>[];
     final timedEventsByDay = <List<WeekEvent>>[];
     for (var i = 0; i < 7; i++) {
@@ -296,11 +326,12 @@ class _WeekBody extends ConsumerWidget {
                           bottom: 0,
                           child: SizedBox(
                             width: _kTimeGutter,
-                            child: _TimeGrid(colorScheme: colorScheme),
+                            child: _TimeGrid(colorScheme: colorScheme, hourInterval: hourInterval),
                           ),
                         ),
                         // Full-width hour lines
-                        ...List.generate(24, (hour) {
+                        ...List.generate(24 ~/ hourInterval, (i) {
+                          final hour = i * hourInterval;
                           return Positioned(
                             top: hour * _kPixelsPerHour,
                             left: _kTimeGutter,
@@ -361,8 +392,8 @@ class _WeekBody extends ConsumerWidget {
     switch (event) {
       case TaskEvent e:
         ref.read(weekDataProvider(mondayStr).notifier).toggleTask(e.task, e.task.date!);
-      case PlanTaskEvent e:
-        ref.read(weekDataProvider(mondayStr).notifier).togglePlanTask(e.planTask.id, e.planTask.planId, e.date);
+      case PlanTaskEvent _:
+        return;
       case CountdownEvent e:
         context.push('/countdown/detail', extra: e.countdown);
     }
@@ -519,15 +550,18 @@ class _AllDayRow extends StatelessWidget {
 
 class _TimeGrid extends StatelessWidget {
   final ColorScheme colorScheme;
+  final int hourInterval;
 
-  const _TimeGrid({required this.colorScheme});
+  const _TimeGrid({required this.colorScheme, this.hourInterval = 1});
 
   @override
   Widget build(BuildContext context) {
+    final count = 24 ~/ hourInterval;
     return SizedBox(
       width: _kTimeGutter,
       child: Stack(
-        children: List.generate(24, (hour) {
+        children: List.generate(count, (i) {
+          final hour = i * hourInterval;
           return Positioned(
             top: (hour * _kPixelsPerHour - 7).clamp(0.0, double.infinity),
             left: 0,
@@ -605,7 +639,7 @@ class _DayColumn extends StatelessWidget {
                       children: [
                         if (event.startTime != null)
                           Text(
-                            event.timeRange,
+                            event.shortTimeRange,
                             style: TextStyle(
                               fontSize: 8,
                               color: event.color.withValues(alpha: 0.7),

@@ -5,8 +5,8 @@ import 'package:marquer/api/models/calendar/create_plan_request.dart';
 import 'package:marquer/api/models/calendar/plan.dart';
 import 'package:marquer/api/models/calendar/plan_schedule.dart';
 import 'package:marquer/api/models/calendar/update_plan_request.dart';
+import 'package:marquer/components/calendar/add_event_sheet.dart';
 import 'package:marquer/providers/calendar/plans_provider.dart';
-import 'package:marquer/utils/action_sheet.dart';
 import 'package:marquer/utils/format.dart';
 
 class _TaskItem {
@@ -66,7 +66,6 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
   DateTime? _endDate;
   bool _hasEndDate = false;
   late List<_TaskItem> _tasks;
-  bool _isReorderMode = false;
 
   bool get _isEditing => widget.plan != null;
 
@@ -92,7 +91,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
       _monthlyDates = [DateTime.now().day];
       _monthlyWeekdayOccurrence = 1;
       _monthlyWeekdayDay = DateTime.now().weekday - 1;
-      _tasks = [_TaskItem(name: '', sortOrder: 0)];
+      _tasks = [];
     }
   }
 
@@ -183,6 +182,14 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
     final validTasks = _tasks.where((t) => t.name.trim().isNotEmpty).toList();
     if (validTasks.isEmpty) return;
 
+    // Sort by time: no startTime first, then ascending
+    validTasks.sort((a, b) {
+      if (a.startTime == null && b.startTime == null) return 0;
+      if (a.startTime == null) return -1;
+      if (b.startTime == null) return 1;
+      return a.startTime!.compareTo(b.startTime!);
+    });
+
     final schedule = _buildSchedule();
     final startDate = formatDate(_startDate);
     final endDate = _hasEndDate && _endDate != null ? formatDate(_endDate!) : null;
@@ -219,6 +226,45 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
     }
 
     Navigator.pop(context);
+  }
+
+  void _addEvent() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddEventSheet(
+        onSave: (name, startTime, endTime, _) {
+          setState(() => _tasks.add(_TaskItem(
+            name: name,
+            sortOrder: _tasks.length,
+            startTime: startTime,
+            endTime: endTime,
+          )));
+        },
+      ),
+    );
+  }
+
+  void _editEvent(int index) {
+    final task = _tasks[index];
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddEventSheet(
+        initialName: task.name,
+        initialStartTime: task.startTimeOfDay,
+        initialEndTime: task.endTimeOfDay,
+        onSave: (name, startTime, endTime, _) {
+          setState(() {
+            _tasks[index].name = name;
+            _tasks[index].startTime = startTime;
+            _tasks[index].endTime = endTime;
+          });
+        },
+      ),
+    );
   }
 
   @override
@@ -292,27 +338,19 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
           ],
           const SizedBox(height: 20),
 
-          // Tasks
+          // Events
           Row(
             children: [
-              Expanded(child: Text('Tasks', style: Theme.of(context).textTheme.titleSmall)),
-              if (_isReorderMode)
-                TextButton(
-                  onPressed: () => setState(() => _isReorderMode = false),
-                  child: const Text('Done'),
-                )
-              else
-                TextButton.icon(
-                  onPressed: () => setState(() {
-                    _tasks.add(_TaskItem(name: '', sortOrder: _tasks.length));
-                  }),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add'),
-                ),
+              Expanded(child: Text('Events', style: Theme.of(context).textTheme.titleSmall)),
+              TextButton.icon(
+                onPressed: _addEvent,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add'),
+              ),
             ],
           ),
           const SizedBox(height: 8),
-          _buildTaskList(colors),
+          _buildEventList(colors),
           const SizedBox(height: 80),
         ],
       ),
@@ -393,29 +431,36 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
   }
 
   Widget _buildMonthlyDatesConfig() {
-    return Wrap(
-      spacing: 4,
-      runSpacing: 4,
-      children: List.generate(31, (i) {
-        final day = i + 1;
-        final selected = _monthlyDates.contains(day);
-        return SizedBox(
-          width: 40,
-          child: FilterChip(
-            label: Text('$day', style: const TextStyle(fontSize: 12)),
-            selected: selected,
-            onSelected: (v) => setState(() {
-              if (v) {
-                _monthlyDates.add(day);
-              } else if (_monthlyDates.length > 1) {
-                _monthlyDates.remove(day);
-              }
-            }),
-            padding: EdgeInsets.zero,
-            labelPadding: EdgeInsets.zero,
-          ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 4.0;
+        final chipWidth = (constraints.maxWidth - spacing * 6) / 7;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: List.generate(31, (i) {
+            final day = i + 1;
+            final selected = _monthlyDates.contains(day);
+            return SizedBox(
+              width: chipWidth,
+              child: FilterChip(
+                label: Center(child: Text('$day', style: const TextStyle(fontSize: 13))),
+                selected: selected,
+                showCheckmark: false,
+                onSelected: (v) => setState(() {
+                  if (v) {
+                    _monthlyDates.add(day);
+                  } else if (_monthlyDates.length > 1) {
+                    _monthlyDates.remove(day);
+                  }
+                }),
+                labelPadding: EdgeInsets.zero,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            );
+          }),
         );
-      }),
+      },
     );
   }
 
@@ -451,151 +496,71 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
     );
   }
 
-  Widget _buildTaskList(ColorScheme colors) {
-    return ReorderableListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      buildDefaultDragHandles: false,
-      itemCount: _tasks.length,
-      onReorder: (oldIndex, newIndex) {
-        setState(() {
-          if (newIndex > oldIndex) newIndex--;
-          final item = _tasks.removeAt(oldIndex);
-          _tasks.insert(newIndex, item);
-          for (var i = 0; i < _tasks.length; i++) {
-            _tasks[i].sortOrder = i;
-          }
-        });
-      },
-      itemBuilder: (context, index) {
-        final task = _tasks[index];
-        return GestureDetector(
-          key: ValueKey(task),
-          onLongPress: _isReorderMode
-              ? null
-              : () async {
-                  final result = await showAppActionSheet(context, const [
-                    AppAction(value: 'reorder', icon: Icons.reorder, label: 'Reorder'),
-                  ]);
-                  if (result == 'reorder') setState(() => _isReorderMode = true);
-                },
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: colors.surfaceContainer,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_isReorderMode)
-                  ReorderableDragStartListener(
-                    index: index,
-                    child: const Padding(
-                      padding: EdgeInsets.only(top: 14),
-                      child: Icon(Icons.drag_handle, size: 20),
-                    ),
-                  ),
-                if (_isReorderMode) const SizedBox(width: 8),
-                Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextField(
-                          controller: TextEditingController(text: task.name),
-                          decoration: InputDecoration(hintText: 'Task ${index + 1}'),
-                          onChanged: (v) => task.name = v,
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            _TimeChip(
-                              label: task.startTime ?? 'Start',
-                              hasValue: task.startTime != null,
-                              onTap: () async {
-                                final picked = await showTimePicker(
-                                  context: context,
-                                  initialTime: task.startTimeOfDay ?? TimeOfDay.now(),
-                                );
-                                if (picked != null) {
-                                  setState(() {
-                                    task.setStartTime(picked);
-                                    final endMin = picked.hour * 60 + picked.minute + 60;
-                                    if (task.endTime == null) {
-                                      task.setEndTime(TimeOfDay(hour: (endMin ~/ 60) % 24, minute: endMin % 60));
-                                    }
-                                  });
-                                }
-                              },
-                            ),
-                            if (task.startTime != null) ...[
-                              const SizedBox(width: 6),
-                              _TimeChip(
-                                label: task.endTime ?? 'End',
-                                hasValue: task.endTime != null,
-                                onTap: () async {
-                                  final picked = await showTimePicker(
-                                    context: context,
-                                    initialTime: task.endTimeOfDay ?? TimeOfDay.now(),
-                                  );
-                                  if (picked != null) setState(() => task.setEndTime(picked));
-                                },
-                              ),
-                              const SizedBox(width: 4),
-                              GestureDetector(
-                                onTap: () => setState(() {
-                                  task.setStartTime(null);
-                                  task.setEndTime(null);
-                                }),
-                                child: Icon(Icons.close, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
-                              ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                      ],
-                    ),
-                  ),
-                  if (_tasks.length > 1)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 20),
-                      onPressed: () => setState(() => _tasks.removeAt(index)),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                ],
-              ),
+  Widget _buildEventList(ColorScheme colors) {
+    if (_tasks.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: Text(
+            'No events yet. Tap Add to create one.',
+            style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5)),
           ),
-        );
-      },
+        ),
+      );
+    }
+    return Column(
+      children: [
+        for (int index = 0; index < _tasks.length; index++)
+          _buildEventTile(index, colors),
+      ],
     );
   }
-}
 
-class _TimeChip extends StatelessWidget {
-  final String label;
-  final bool hasValue;
-  final VoidCallback onTap;
-
-  const _TimeChip({required this.label, required this.hasValue, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+  Widget _buildEventTile(int index, ColorScheme colors) {
+    final task = _tasks[index];
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => _editEvent(index),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: hasValue ? colors.primaryContainer : colors.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
+          color: colors.surfaceContainer,
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: hasValue ? colors.onPrimaryContainer : colors.onSurface.withValues(alpha: 0.6),
-          ),
+        child: Row(
+          children: [
+            Icon(Icons.circle_outlined, size: 20, color: colors.onSurface.withValues(alpha: 0.4)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.name,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  if (task.startTime != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.access_time, size: 12, color: colors.onSurfaceVariant),
+                        const SizedBox(width: 4),
+                        Text(
+                          formatTimeRange(task.startTime, task.endTime),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 20),
+              onPressed: () => setState(() => _tasks.removeAt(index)),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
         ),
       ),
     );
