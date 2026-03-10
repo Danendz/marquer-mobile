@@ -20,9 +20,7 @@ class PlanTaskTile extends ConsumerWidget {
 
     final hasTime = task.startTime != null;
 
-    return GestureDetector(
-      onTap: () => ref.read(dayPlansProvider.notifier).toggleTask(planId, task.id),
-      child: Container(
+    return Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
@@ -77,7 +75,6 @@ class PlanTaskTile extends ConsumerWidget {
             ],
           ],
         ),
-      ),
     );
   }
 

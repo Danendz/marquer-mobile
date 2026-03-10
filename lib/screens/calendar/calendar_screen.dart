@@ -88,7 +88,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           ],
         ),
         child: KeyedSubtree(
-          key: ValueKey(_tab),
+          key: ValueKey((_tab, _tab == _Tab.calendar ? viewMode : null)),
           child: switch (_tab) {
             _Tab.calendar => viewMode == CalendarViewMode.week
               ? const WeekView()

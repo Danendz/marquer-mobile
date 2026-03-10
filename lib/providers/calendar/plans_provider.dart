@@ -4,6 +4,8 @@ import 'package:marquer/api/models/calendar/create_plan_request.dart';
 import 'package:marquer/api/models/calendar/plan.dart';
 import 'package:marquer/api/models/calendar/update_plan_request.dart';
 import 'package:marquer/api/services/calendar_service.dart';
+import 'package:marquer/providers/calendar/calendar_overview_provider.dart';
+import 'package:marquer/providers/calendar/day_plans_provider.dart';
 import 'package:marquer/services/toast_service.dart';
 
 final plansProvider = AsyncNotifierProvider<PlansNotifier, List<Plan>>(
@@ -26,6 +28,8 @@ class PlansNotifier extends AsyncNotifier<List<Plan>> {
       final created = await _service.createPlan(request);
       if (!ref.mounted) return;
       state = AsyncData([...current, created]);
+      ref.invalidate(calendarOverviewProvider);
+      ref.invalidate(dayPlansProvider);
     } catch (e) {
       if (!ref.mounted) return;
       debugPrint(e.toString());
@@ -43,6 +47,8 @@ class PlansNotifier extends AsyncNotifier<List<Plan>> {
       state = AsyncData([
         for (final p in state.asData!.value) if (p.id == plan.id) updated else p,
       ]);
+      ref.invalidate(calendarOverviewProvider);
+      ref.invalidate(dayPlansProvider);
     } catch (e) {
       if (!ref.mounted) return;
       debugPrint(e.toString());

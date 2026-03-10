@@ -78,7 +78,6 @@ class _DayEventTileState extends ConsumerState<DayEventTile> {
     final hasTime = widget.task.startTime != null;
 
     return GestureDetector(
-      onTap: () => ref.read(calendarDayEventsProvider.notifier).toggleEvent(widget.task),
       onLongPress: _onLongPress,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

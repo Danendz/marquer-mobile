@@ -120,7 +120,6 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
     final hasCategory = category != null;
 
     return GestureDetector(
-      onTap: (isDeletedView || _isCancelled) ? null : () => ref.read(tasksProvider.notifier).toggleTaskStatus(widget.task),
       onLongPress: _onLongPress,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -138,7 +137,7 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
               children: [
                 CircleCheckbox(
                   checked: _isDone,
-                  onTap: _isCancelled
+                  onTap: (isDeletedView || _isCancelled)
                       ? null
                       : () => ref.read(tasksProvider.notifier).toggleTaskStatus(widget.task),
                   color: colors.primary,

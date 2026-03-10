@@ -8,6 +8,7 @@ class AddEventSheet extends ConsumerStatefulWidget {
   final TimeOfDay? initialEndTime;
   final String? initialDate;
   final List<DateTime>? weekDays;
+  final String? initialName;
   final void Function(String name, String? startTime, String? endTime, String date)? onSave;
 
   const AddEventSheet({
@@ -16,6 +17,7 @@ class AddEventSheet extends ConsumerStatefulWidget {
     this.initialEndTime,
     this.initialDate,
     this.weekDays,
+    this.initialName,
     this.onSave,
   });
 
@@ -39,6 +41,7 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
     if (widget.initialDate != null) {
       _selectedDate = DateTime.parse(widget.initialDate!);
     }
+    _controller.text = widget.initialName ?? '';
   }
 
   @override
@@ -85,8 +88,8 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
     final startStr = _startTime != null ? formatTimeOfDay(_startTime!) : null;
     final endStr = _endTime != null ? formatTimeOfDay(_endTime!) : null;
 
-    if (widget.onSave != null && _selectedDate != null) {
-      widget.onSave!(name, startStr, endStr, formatDate(_selectedDate!));
+    if (widget.onSave != null) {
+      widget.onSave!(name, startStr, endStr, _selectedDate != null ? formatDate(_selectedDate!) : '');
     } else {
       await ref.read(calendarDayEventsProvider.notifier).addEvent(
             name,
@@ -127,7 +130,7 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
                     ),
                   ),
                 ),
-                Text('Add Event', style: Theme.of(context).textTheme.titleMedium),
+                Text(widget.initialName != null ? 'Edit Event' : 'Add Event', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 12),
                 if (widget.weekDays != null) ...[
                   _DaySelector(

@@ -31,6 +31,8 @@ sealed class WeekEvent {
     if (endTime == null) return startTime!;
     return '${startTime!}–${endTime!}';
   }
+
+  String get shortTimeRange => startTime ?? '';
 }
 
 final class TaskEvent extends WeekEvent {
