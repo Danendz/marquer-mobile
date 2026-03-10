@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/calendar/week_data.dart';
 import 'package:marquer/api/models/tasks/tasks/task.dart';
+import 'package:marquer/api/models/tasks/tasks/task_status.dart';
 import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
 import 'package:marquer/components/calendar/add_event_sheet.dart';
 import 'package:marquer/components/calendar/calendar_settings_sheet.dart';
@@ -391,12 +392,27 @@ class _WeekBody extends ConsumerWidget {
   void _handleTap(WeekEvent event, WidgetRef ref, BuildContext context) {
     switch (event) {
       case TaskEvent e:
-        ref.read(weekDataProvider(mondayStr).notifier).toggleTask(e.task, e.task.date!);
+        _showTaskDetailSheet(context, ref, e.task);
       case PlanTaskEvent _:
         return;
       case CountdownEvent e:
         context.push('/countdown/detail', extra: e.countdown);
     }
+  }
+
+  void _showTaskDetailSheet(BuildContext context, WidgetRef ref, Task task) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _TaskDetailSheet(
+        task: task,
+        mondayStr: mondayStr,
+        onEdit: () => _showEditSheet(context, ref, task),
+        onDelete: () => ref.read(weekDataProvider(mondayStr).notifier).deleteTask(task, task.date!),
+        onToggle: () => ref.read(weekDataProvider(mondayStr).notifier).toggleTask(task, task.date!),
+      ),
+    );
   }
 
   Future<void> _handleLongPress(WeekEvent event, WidgetRef ref, BuildContext context) async {
@@ -458,6 +474,153 @@ class _WeekBody extends ConsumerWidget {
         weekDays: days,
         onSave: (name, start, end, date) =>
             ref.read(weekDataProvider(mondayStr).notifier).addTask(name, date, startTime: start, endTime: end),
+      ),
+    );
+  }
+}
+
+class _TaskDetailSheet extends ConsumerWidget {
+  final Task task;
+  final String mondayStr;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback onToggle;
+
+  const _TaskDetailSheet({
+    required this.task,
+    required this.mondayStr,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDone = task.status == TaskStatus.done;
+
+    String? timeRange;
+    if (task.startTime != null && task.endTime != null) {
+      timeRange = '${task.startTime} – ${task.endTime}';
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 8),
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colorScheme.onSurface.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    task.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    onToggle();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isDone
+                          ? colorScheme.primaryContainer
+                          : colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isDone ? Icons.check_circle : Icons.radio_button_unchecked,
+                          size: 16,
+                          color: isDone ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          isDone ? 'Done' : 'Not done',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDone ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (timeRange != null) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Icon(Icons.access_time, size: 14, color: colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 6),
+                  Text(
+                    timeRange,
+                    style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onEdit();
+                    },
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Edit'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onDelete();
+                    },
+                    icon: Icon(Icons.delete_outline, size: 16, color: colorScheme.error),
+                    label: Text('Delete', style: TextStyle(color: colorScheme.error)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: colorScheme.error),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -600,6 +763,16 @@ class _DayColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final positioned = _layoutEvents(events, width);
+
+    // Group PlanTaskEvents by planId for background rendering
+    final planGroups = <int, List<PlanTaskEvent>>{};
+    for (final event in events) {
+      if (event is PlanTaskEvent) {
+        planGroups.putIfAbsent(event.planId, () => []).add(event);
+      }
+    }
+
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onLongPressStart: (details) {
@@ -610,58 +783,123 @@ class _DayColumn extends StatelessWidget {
         width: width,
         child: Stack(
           children: [
+            // Plan group backgrounds (rendered before events)
+            ...planGroups.entries.map((entry) {
+              final planEvents = entry.value;
+              final minStart = planEvents.map((e) => e.startMinutes).reduce((a, b) => a < b ? a : b);
+              final maxEnd = planEvents
+                  .map((e) => e.startMinutes + e.durationMinutes)
+                  .reduce((a, b) => a > b ? a : b);
+              final top = (minStart * _kPixelsPerMinute) - 12;
+              final bgHeight = (((maxEnd - minStart) * _kPixelsPerMinute) + 12).clamp(18.0, double.infinity);
+              final planName = planEvents.first.planName;
+              return Positioned(
+                top: top,
+                left: 1.5,
+                width: width - 3,
+                height: bgHeight,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  padding: const EdgeInsets.only(left: 3, top: 1),
+                  child: Text(
+                    planName,
+                    style: TextStyle(fontSize: 8, color: Colors.amber.shade700),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              );
+            }),
             // Events
-            ..._layoutEvents(events, width).map((positioned) {
-              final event = positioned.event;
+            ...positioned.map((p) {
+              final event = p.event;
               final top = event.startMinutes * _kPixelsPerMinute;
               final height = (event.durationMinutes * _kPixelsPerMinute).clamp(18.0, double.infinity);
               final isDone = event.isDone;
 
               return Positioned(
                 top: top,
-                left: positioned.left + 1,
-                width: positioned.width - 2,
+                left: p.left + 1.5,
+                width: p.width - 3,
                 height: height,
                 child: GestureDetector(
                   onTap: () => onEventTap(event),
                   onLongPress: () => onEventLongPress?.call(event),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: event.color.withValues(alpha: isDone ? 0.12 : 0.2),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border(
-                        left: BorderSide(color: event.color, width: 3),
-                      ),
-                    ),
-                    padding: const EdgeInsets.only(left: 4, top: 2, right: 2),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (event.startTime != null)
-                          Text(
-                            event.shortTimeRange,
-                            style: TextStyle(
-                              fontSize: 8,
-                              color: event.color.withValues(alpha: 0.7),
-                              decoration: isDone ? TextDecoration.lineThrough : null,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                        Expanded(
-                          child: Text(
-                            event.name,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: event.color,
-                              decoration: isDone ? TextDecoration.lineThrough : null,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 3,
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: event.color.withValues(alpha: isDone ? 0.12 : 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border(
+                            left: BorderSide(color: event.color, width: 2),
                           ),
                         ),
-                      ],
-                    ),
+                        padding: const EdgeInsets.only(left: 4, top: 2, right: 2),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (event.startTime != null)
+                              Text(
+                                event.shortTimeRange,
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  color: event.color.withValues(alpha: 0.7),
+                                  decoration: isDone ? TextDecoration.lineThrough : null,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            Expanded(
+                              child: Text(
+                                event.name,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: event.color,
+                                  decoration: isDone ? TextDecoration.lineThrough : null,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Subtle bottom separator
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: Container(height: 0.5, color: colorScheme.outlineVariant),
+                      ),
+                      // "+N" overflow badge
+                      if (p.overflowCount > 0)
+                        Positioned(
+                          top: 2,
+                          right: 2,
+                          child: GestureDetector(
+                            onTap: () => _showOverflowSheet(context, p.overflowEvents),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: event.color.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '+${p.overflowCount}',
+                                style: const TextStyle(
+                                  fontSize: 8,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               );
@@ -672,49 +910,141 @@ class _DayColumn extends StatelessWidget {
     );
   }
 
+  void _showOverflowSheet(BuildContext context, List<WeekEvent> overflowEvents) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: cs.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'More events',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: cs.onSurface),
+              ),
+              const SizedBox(height: 8),
+              ...overflowEvents.map((e) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 3,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: e.color,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(e.name, style: TextStyle(fontSize: 13, color: cs.onSurface)),
+                          if (e.timeRange.isNotEmpty)
+                            Text(
+                              e.timeRange,
+                              style: TextStyle(fontSize: 11, color: cs.onSurface.withValues(alpha: 0.6)),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   List<_PositionedEvent> _layoutEvents(List<WeekEvent> events, double columnWidth) {
     if (events.isEmpty) return [];
 
-    // Sort by start time
     final sorted = [...events]..sort((a, b) => a.startMinutes.compareTo(b.startMinutes));
-
-    // Simple overlap detection: group overlapping events into columns
+    final clusters = _buildClusters(sorted);
     final result = <_PositionedEvent>[];
-    final columns = <List<WeekEvent>>[];
 
+    for (final cluster in clusters) {
+      if (cluster.length >= 3) {
+        // 3+ overlapping: first event full-width, rest hidden behind "+N" badge
+        final first = cluster.first;
+        result.add(_PositionedEvent(
+          event: first,
+          left: 0,
+          width: columnWidth,
+          colIndex: 0,
+          overflowCount: cluster.length - 1,
+          overflowEvents: cluster.skip(1).toList(),
+        ));
+      } else {
+        // 1 or 2 events: side-by-side columns within cluster
+        final subCols = <List<WeekEvent>>[];
+        for (final event in cluster) {
+          int col = -1;
+          for (int i = 0; i < subCols.length; i++) {
+            final last = subCols[i].last;
+            if (event.startMinutes >= last.startMinutes + last.durationMinutes) {
+              col = i;
+              break;
+            }
+          }
+          if (col == -1) {
+            col = subCols.length;
+            subCols.add([]);
+          }
+          subCols[col].add(event);
+        }
+        final totalCols = subCols.length;
+        final w = columnWidth / totalCols;
+        for (int c = 0; c < subCols.length; c++) {
+          for (final event in subCols[c]) {
+            result.add(_PositionedEvent(event: event, left: c * w, width: w, colIndex: c));
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /// Groups events into overlap clusters (transitive closure of pairwise overlap).
+  List<List<WeekEvent>> _buildClusters(List<WeekEvent> sorted) {
+    final clusters = <List<WeekEvent>>[];
     for (final event in sorted) {
-      // Find first column where it doesn't overlap
-      int col = -1;
-      for (int i = 0; i < columns.length; i++) {
-        final last = columns[i].last;
-        if (event.startMinutes >= last.startMinutes + last.durationMinutes) {
-          col = i;
+      bool added = false;
+      for (final cluster in clusters) {
+        final overlaps = cluster.any((e) =>
+          event.startMinutes < e.startMinutes + e.durationMinutes &&
+          e.startMinutes < event.startMinutes + event.durationMinutes);
+        if (overlaps) {
+          cluster.add(event);
+          added = true;
           break;
         }
       }
-
-      if (col == -1) {
-        col = columns.length;
-        columns.add([]);
-      }
-      columns[col].add(event);
-
-      // Count how many columns are "active" at this event's time
-      // (simplified: use columns.length at placement time)
-      final totalCols = columns.length;
-      final w = columnWidth / totalCols;
-      result.add(_PositionedEvent(event: event, left: col * w, width: w, colIndex: col));
+      if (!added) clusters.add([event]);
     }
-
-    // Re-layout with final column count
-    final totalCols = columns.length;
-    if (totalCols == 1) return result;
-
-    // Reassign widths with final column count
-    return result.map((p) {
-      final w = columnWidth / totalCols;
-      return _PositionedEvent(event: p.event, left: p.colIndex * w, width: w, colIndex: p.colIndex);
-    }).toList();
+    return clusters;
   }
 }
 
@@ -723,12 +1053,16 @@ class _PositionedEvent {
   final double left;
   final double width;
   final int colIndex;
+  final int overflowCount;
+  final List<WeekEvent> overflowEvents;
 
   const _PositionedEvent({
     required this.event,
     required this.left,
     required this.width,
     required this.colIndex,
+    this.overflowCount = 0,
+    this.overflowEvents = const [],
   });
 }
 

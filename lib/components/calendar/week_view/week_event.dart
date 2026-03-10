@@ -68,6 +68,9 @@ final class PlanTaskEvent extends WeekEvent {
 
   @override
   bool get isDone => planTask.isCompleted;
+
+  int get planId => planTask.planId;
+  String get planName => planTask.planName;
 }
 
 final class CountdownEvent extends WeekEvent {

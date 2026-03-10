@@ -9,6 +9,7 @@ class WeekPlanTask {
   final String? endTime;
   final bool isCompleted;
   final int planId;
+  final String planName;
 
   const WeekPlanTask({
     required this.id,
@@ -18,6 +19,7 @@ class WeekPlanTask {
     this.endTime,
     required this.isCompleted,
     required this.planId,
+    required this.planName,
   });
 
   factory WeekPlanTask.fromJson(Map<String, dynamic> json) => WeekPlanTask(
@@ -28,9 +30,10 @@ class WeekPlanTask {
     endTime: json['end_time'] as String?,
     isCompleted: json['is_completed'] as bool,
     planId: json['plan_id'] as int,
+    planName: json['plan_name'] as String,
   );
 
-  WeekPlanTask copyWith({bool? isCompleted}) => WeekPlanTask(
+  WeekPlanTask copyWith({bool? isCompleted, String? planName}) => WeekPlanTask(
     id: id,
     name: name,
     sortOrder: sortOrder,
@@ -38,6 +41,7 @@ class WeekPlanTask {
     endTime: endTime,
     isCompleted: isCompleted ?? this.isCompleted,
     planId: planId,
+    planName: planName ?? this.planName,
   );
 }
 
