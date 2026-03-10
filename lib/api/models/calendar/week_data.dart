@@ -44,7 +44,7 @@ class WeekPlanTask {
 class WeekData {
   final Map<String, List<Task>> tasks;
   final Map<String, List<WeekPlanTask>> planTasks;
-  final List<Countdown> countdowns;
+  final Map<String, List<Countdown>> countdowns;
 
   const WeekData({
     required this.tasks,
@@ -55,7 +55,7 @@ class WeekData {
   WeekData copyWith({
     Map<String, List<Task>>? tasks,
     Map<String, List<WeekPlanTask>>? planTasks,
-    List<Countdown>? countdowns,
+    Map<String, List<Countdown>>? countdowns,
   }) => WeekData(
     tasks: tasks ?? this.tasks,
     planTasks: planTasks ?? this.planTasks,
@@ -68,7 +68,7 @@ class WeekData {
     final planTasksRaw = json['plan_tasks'];
     final planTasksJson = planTasksRaw is Map<String, dynamic> ? planTasksRaw : <String, dynamic>{};
     final countdownsRaw = json['countdowns'];
-    final countdownsJson = countdownsRaw is List ? countdownsRaw : <dynamic>[];
+    final countdownsJson = countdownsRaw is Map<String, dynamic> ? countdownsRaw : <String, dynamic>{};
 
     return WeekData(
       tasks: tasksJson.map(
@@ -83,7 +83,12 @@ class WeekData {
           (list as List).map((t) => WeekPlanTask.fromJson(t as Map<String, dynamic>)).toList(),
         ),
       ),
-      countdowns: countdownsJson.map((c) => Countdown.fromJson(c as Map<String, dynamic>)).toList(),
+      countdowns: countdownsJson.map(
+        (date, list) => MapEntry(
+          date,
+          (list as List).map((c) => Countdown.fromJson(c as Map<String, dynamic>)).toList(),
+        ),
+      ),
     );
   }
 }

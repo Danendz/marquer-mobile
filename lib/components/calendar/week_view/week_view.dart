@@ -248,10 +248,8 @@ class _WeekBody extends ConsumerWidget {
     for (final pt in data.planTasks[dateStr] ?? []) {
       events.add(PlanTaskEvent(pt, dateStr));
     }
-    for (final cd in data.countdowns) {
-      if (cd.targetDate == dateStr) {
-        events.add(CountdownEvent(cd, colors.primary));
-      }
+    for (final cd in data.countdowns[dateStr] ?? []) {
+      events.add(CountdownEvent(cd, colors.primary));
     }
 
     return events;
