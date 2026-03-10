@@ -137,6 +137,20 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
     }
   }
 
+  /// Refetch from server without showing loading state (stale-while-revalidate).
+  Future<void> silentRefresh() async {
+    if (state.asData == null) return; // still loading, skip
+    try {
+      final monday = DateTime.parse(mondayStr);
+      final sunday = monday.add(const Duration(days: 6));
+      final fresh = await _service.getWeekData(mondayStr, formatDate(sunday));
+      if (!ref.mounted) return;
+      state = AsyncData(fresh);
+    } catch (_) {
+      // Keep stale data on error
+    }
+  }
+
   WeekData _updateTaskInData(WeekData data, String date, int taskId, Task? replacement) {
     final updatedTasks = Map<String, List<Task>>.from(data.tasks);
     final list = List<Task>.from(updatedTasks[date] ?? []);

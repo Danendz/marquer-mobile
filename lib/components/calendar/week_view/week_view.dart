@@ -107,6 +107,11 @@ class _WeekPageState extends ConsumerState<_WeekPage> {
     super.initState();
     _scrollController = ScrollController(initialScrollOffset: widget.initialScrollOffset);
     _scrollController.addListener(() => widget.onScrollChanged?.call(_scrollController.offset));
+    // Stale-while-revalidate: show cached data immediately, refresh in background
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final mondayStr = formatDate(widget.monday);
+      ref.read(weekDataProvider(mondayStr).notifier).silentRefresh();
+    });
   }
 
   @override
@@ -364,13 +369,14 @@ class _WeekBody extends ConsumerWidget {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: List.generate(7, (i) {
-                              return _DayColumn(
-                                width: columnWidth,
-                                events: timedEventsByDay[i],
-                                colorScheme: colorScheme,
-                                onEventTap: (event) => _handleTap(event, ref, context),
-                                onEventLongPress: (event) => _handleLongPress(event, ref, context),
-                                onEmptyTap: (minutes) => _handleEmptyTap(i, minutes, ref, context),
+                              return Expanded(
+                                child: _DayColumn(
+                                  events: timedEventsByDay[i],
+                                  colorScheme: colorScheme,
+                                  onEventTap: (event) => _handleTap(event, ref, context),
+                                  onEventLongPress: (event) => _handleLongPress(event, ref, context),
+                                  onEmptyTap: (minutes) => _handleEmptyTap(i, minutes, ref, context),
+                                ),
                               );
                             }),
                           ),
@@ -745,7 +751,6 @@ class _TimeGrid extends StatelessWidget {
 }
 
 class _DayColumn extends StatelessWidget {
-  final double width;
   final List<WeekEvent> events;
   final ColorScheme colorScheme;
   final void Function(WeekEvent) onEventTap;
@@ -753,7 +758,6 @@ class _DayColumn extends StatelessWidget {
   final void Function(int minutes)? onEmptyTap;
 
   const _DayColumn({
-    required this.width,
     required this.events,
     required this.colorScheme,
     required this.onEventTap,
@@ -763,6 +767,15 @@ class _DayColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        return _buildColumn(context, width);
+      },
+    );
+  }
+
+  Widget _buildColumn(BuildContext context, double width) {
     final positioned = _layoutEvents(events, width);
 
     // Group PlanTaskEvents by planId for background rendering
@@ -779,12 +792,10 @@ class _DayColumn extends StatelessWidget {
         final minutes = (details.localPosition.dy / _kPixelsPerMinute).round();
         onEmptyTap?.call(minutes);
       },
-      child: SizedBox(
-        width: width,
-        child: Stack(
-          children: [
-            // Plan group backgrounds (rendered before events)
-            ...planGroups.entries.map((entry) {
+      child: Stack(
+        children: [
+          // Plan group backgrounds (rendered before events)
+          ...planGroups.entries.map((entry) {
               final planEvents = entry.value;
               final minStart = planEvents.map((e) => e.startMinutes).reduce((a, b) => a < b ? a : b);
               final maxEnd = planEvents
@@ -829,6 +840,7 @@ class _DayColumn extends StatelessWidget {
                   onTap: () => onEventTap(event),
                   onLongPress: () => onEventLongPress?.call(event),
                   child: Stack(
+                    fit: StackFit.expand,
                     children: [
                       Container(
                         decoration: BoxDecoration(
@@ -906,8 +918,7 @@ class _DayColumn extends StatelessWidget {
             }),
           ],
         ),
-      ),
-    );
+      );
   }
 
   void _showOverflowSheet(BuildContext context, List<WeekEvent> overflowEvents) {
