@@ -123,6 +123,7 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
     final hasSubtitle = hasTime || hasDate;
     final hasCategory = category != null;
 
+
     return GestureDetector(
       onLongPress: _onLongPress,
       child: Container(

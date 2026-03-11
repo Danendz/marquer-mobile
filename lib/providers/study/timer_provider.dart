@@ -11,6 +11,7 @@ import 'package:marquer/api/services/study_service.dart';
 import 'package:marquer/providers/study/study_sessions_provider.dart';
 import 'package:marquer/providers/study/study_stats_provider.dart';
 import 'package:marquer/services/foreground_timer_service.dart';
+import 'package:marquer/services/toast_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -536,16 +537,38 @@ class TimerNotifier extends Notifier<TimerState> {
     }
   }
 
-  Future<void> complete() async {
+  void _resetTimerState() {
     _ticker?.cancel();
     WakelockPlus.disable();
     unawaited(clearTimerBgState());
     unawaited(stopTimerForegroundService());
     _clearLocal();
+    state = TimerState(mode: TimerMode.countUp);
+  }
+
+  Future<void> complete() async {
     final session = state.serverSession;
     final elapsed = state.elapsedSeconds;
     final cycles = state.completedCycles;
-    state = TimerState(mode: TimerMode.countUp);
+
+    if (elapsed < 60) {
+      if (session != null) {
+        try {
+          await _service.cancelSession(session.id);
+          ref.invalidate(studyStatsProvider);
+          ref.invalidate(studySessionsProvider);
+        } catch (e) {
+          debugPrint(e.toString());
+          ToastService.showError('Failed to cancel session. Please try again.');
+          return;
+        }
+      }
+      _resetTimerState();
+      ToastService.showError('Study time under 1 minute does not count');
+      return;
+    }
+
+    _resetTimerState();
     if (session != null) {
       try {
         await _service.completeSession(
@@ -564,13 +587,8 @@ class TimerNotifier extends Notifier<TimerState> {
   }
 
   Future<void> cancel() async {
-    _ticker?.cancel();
-    WakelockPlus.disable();
-    unawaited(clearTimerBgState());
-    unawaited(stopTimerForegroundService());
-    _clearLocal();
     final session = state.serverSession;
-    state = TimerState(mode: TimerMode.countUp);
+    _resetTimerState();
     if (session != null) {
       try {
         await _service.cancelSession(session.id);
