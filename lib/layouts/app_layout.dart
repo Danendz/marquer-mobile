@@ -1,10 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class AppLayout extends StatelessWidget {
   final Widget child;
   final String path;
-  static const List<String> paths = ["/notes", "/tasks"];
+  static const List<String> paths = ["/notes", "/calendar"];
 
   const AppLayout({super.key, required this.child, required this.path});
 
@@ -38,7 +38,7 @@ class AppLayout extends StatelessWidget {
                 context.go('/notes');
                 break;
               case 2:
-                context.go('/tasks');
+                context.go('/calendar');
                 break;
               default:
                 throw Exception('Invalid index');
@@ -47,7 +47,7 @@ class AppLayout extends StatelessWidget {
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
             BottomNavigationBarItem(icon: Icon(Icons.note), label: 'Notes'),
-            BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: 'Tasks'),
+            BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Calendar'),
           ],
         ),
       ),

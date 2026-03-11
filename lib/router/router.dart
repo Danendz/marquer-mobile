@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:marquer/api/models/calendar/countdown.dart';
+import 'package:marquer/api/models/calendar/plan.dart';
 import 'package:marquer/api/models/study/study_session.dart';
 import 'package:marquer/layouts/app_layout.dart';
+import 'package:marquer/screens/calendar/countdown_detail_screen.dart';
+import 'package:marquer/screens/calendar/countdown_settings_screen.dart';
 import 'package:marquer/screens/home.dart';
 import 'package:marquer/screens/notes/notes.dart';
 import 'package:marquer/screens/notes/notes_edit.dart';
 import 'package:marquer/screens/notes/notes_add.dart';
+import 'package:marquer/screens/calendar/calendar_screen.dart';
+import 'package:marquer/screens/calendar/plan_form_screen.dart';
 import 'package:marquer/screens/study/active_timer_screen.dart';
 import 'package:marquer/screens/study/manage_subjects_screen.dart';
-import 'package:marquer/screens/study/study_sessions_screen.dart';
 import 'package:marquer/screens/study/study_stats_screen.dart';
 
 import '../screens/auth/login.dart';
@@ -61,6 +66,27 @@ GoRouter createRouter() {
           return ActiveTimerScreen(session: session);
         },
       ),
+      GoRoute(
+        path: '/countdown/detail',
+        builder: (context, state) {
+          final countdown = state.extra as Countdown;
+          return CountdownDetailScreen(initialCountdown: countdown);
+        },
+      ),
+      GoRoute(
+        path: '/countdown/settings',
+        builder: (context, state) {
+          final countdown = state.extra as Countdown;
+          return CountdownSettingsScreen(countdown: countdown);
+        },
+      ),
+      GoRoute(
+        path: '/calendar/plan/form',
+        builder: (context, state) {
+          final plan = state.extra as Plan?;
+          return PlanFormScreen(plan: plan);
+        },
+      ),
       ShellRoute(
         builder: (context, state, child) {
           return AppLayout(path: state.uri.toString(), child: child);
@@ -95,12 +121,12 @@ GoRouter createRouter() {
             builder: (context, state) => const StudyStatsScreen(),
           ),
           GoRoute(
-            path: '/study/sessions',
-            builder: (context, state) => const StudySessionsScreen(),
-          ),
-          GoRoute(
             path: '/study/subjects',
             builder: (context, state) => const ManageSubjectsScreen(),
+          ),
+          GoRoute(
+            path: '/calendar',
+            builder: (context, state) => const CalendarScreen(),
           ),
         ],
       ),

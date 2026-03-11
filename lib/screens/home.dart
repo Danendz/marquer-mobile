@@ -175,6 +175,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                 mainAxisSpacing: 12,
                 children: [
                   _Tile(
+                    icon: Icons.check_circle_outline,
+                    label: 'Tasks',
+                    color: Colors.indigo,
+                    onTap: () => context.push('/tasks'),
+                  ),
+                  _Tile(
                     icon: Icons.play_circle_fill,
                     label: 'Start Study',
                     color: colorScheme.primary,
@@ -185,12 +191,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                     label: 'Study Stats',
                     color: Colors.teal,
                     onTap: () => context.push('/study/stats'),
-                  ),
-                  _Tile(
-                    icon: Icons.format_list_numbered,
-                    label: 'Session History',
-                    color: Colors.deepPurple,
-                    onTap: () => context.push('/study/sessions'),
                   ),
                   _Tile(
                     icon: Icons.category,

@@ -4,7 +4,11 @@ class Task {
   final int id;
   final String name;
   final TaskStatus status;
+  final String? date;
+  final String? startTime;
+  final String? endTime;
   final int? taskCategoryId;
+  final String? color;
   final String createdAt;
   final String updatedAt;
 
@@ -12,7 +16,11 @@ class Task {
     required this.id,
     required this.name,
     required this.status,
+    this.date,
+    this.startTime,
+    this.endTime,
     this.taskCategoryId,
+    this.color,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -24,19 +32,27 @@ class Task {
       (e) => e.name == json['status'],
       orElse: () => TaskStatus.draft,
     ),
+    date: json['date'] as String?,
+    startTime: json['start_time'] as String?,
+    endTime: json['end_time'] as String?,
     taskCategoryId: json['task_category_id'] as int?,
+    color: json['color'] as String?,
     createdAt: json['created_at'] as String,
     updatedAt: json['updated_at'] as String,
   );
 
   static const _unset = Object();
 
-  Task copyWith({String? name, TaskStatus? status, Object? taskCategoryId = _unset}) {
+  Task copyWith({String? name, TaskStatus? status, Object? date = _unset, Object? startTime = _unset, Object? endTime = _unset, Object? taskCategoryId = _unset, Object? color = _unset}) {
     return Task(
       id: id,
       name: name ?? this.name,
       status: status ?? this.status,
+      date: identical(date, _unset) ? this.date : date as String?,
+      startTime: identical(startTime, _unset) ? this.startTime : startTime as String?,
+      endTime: identical(endTime, _unset) ? this.endTime : endTime as String?,
       taskCategoryId: identical(taskCategoryId, _unset) ? this.taskCategoryId : taskCategoryId as int?,
+      color: identical(color, _unset) ? this.color : color as String?,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
