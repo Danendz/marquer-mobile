@@ -4,6 +4,7 @@ import 'package:marquer/api/models/calendar/week_data.dart';
 import 'package:marquer/api/models/tasks/tasks/task.dart';
 import 'package:marquer/api/models/tasks/tasks/task_status.dart';
 import 'package:marquer/utils/colors.dart';
+import 'package:marquer/utils/format.dart';
 
 sealed class WeekEvent {
   String get name;
@@ -29,11 +30,7 @@ sealed class WeekEvent {
 
   int get durationMinutes => (endMinutes - startMinutes).clamp(15, 24 * 60);
 
-  String get timeRange {
-    if (startTime == null) return '';
-    if (endTime == null) return startTime!;
-    return '${startTime!}–${endTime!}';
-  }
+  String get timeRange => formatTimeRange(startTime, endTime);
 
   String get shortTimeRange => startTime ?? '';
 }

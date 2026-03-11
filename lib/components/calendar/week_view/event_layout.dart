@@ -82,8 +82,10 @@ List<PositionedEvent> layoutEvents(List<WeekEvent> events, double columnWidth) {
         overflowEvents: concurrent.skip(1).toList(),
       ));
     } else {
-      // 1 or 2 events: side-by-side columns within cluster
+      // 1 or 2 events: side-by-side columns within cluster.
+      // Phase 1: assign each event to a column greedily.
       final subCols = <List<WeekEvent>>[];
+      final colOf = <WeekEvent, int>{};
       for (final event in cluster) {
         int col = -1;
         for (int i = 0; i < subCols.length; i++) {
@@ -98,12 +100,17 @@ List<PositionedEvent> layoutEvents(List<WeekEvent> events, double columnWidth) {
           subCols.add([]);
         }
         subCols[col].add(event);
+        colOf[event] = col;
       }
-      final totalCols = subCols.length;
-      final w = columnWidth / totalCols;
+      // Phase 2: per-event width based on how many columns actually overlap at that event's time.
       for (int c = 0; c < subCols.length; c++) {
         for (final event in subCols[c]) {
-          result.add(PositionedEvent(event: event, left: c * w, width: w, colIndex: c));
+          final activeCols = subCols.where((colEvents) => colEvents.any((e) =>
+            e.startMinutes < event.startMinutes + event.durationMinutes &&
+            e.startMinutes + e.durationMinutes > event.startMinutes
+          )).length;
+          final w = columnWidth / activeCols.clamp(1, subCols.length);
+          result.add(PositionedEvent(event: event, left: colOf[event]! * w, width: w, colIndex: colOf[event]!));
         }
       }
     }

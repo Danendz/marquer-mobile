@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/calendar/week_data.dart';
 import 'package:marquer/api/models/tasks/tasks/task.dart';
-import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
 import 'package:marquer/components/calendar/add_event_sheet.dart';
 import 'package:marquer/components/calendar/week_view/all_day_row.dart';
 import 'package:marquer/components/calendar/week_view/current_time_indicator.dart';
@@ -20,6 +19,7 @@ import 'package:marquer/providers/calendar/calendar_settings_provider.dart';
 import 'package:marquer/providers/calendar/week_data_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
 import 'package:marquer/utils/format.dart';
+import 'package:marquer/utils/task_edit_helpers.dart';
 
 class WeekView extends ConsumerStatefulWidget {
   const WeekView({super.key});
@@ -355,16 +355,15 @@ class _WeekBody extends ConsumerWidget {
       builder: (_) => TaskEditSheet(
         task: task,
         onSave: (name, startTime, endTime, clearStart, clearEnd, color) {
-          final request = UpdateTaskRequest(
-            name: name != task.name ? name : null,
+          final (:request, :optimistic) = buildUpdateRequestAndOptimistic(
+            task,
+            name: name,
             startTime: startTime,
             endTime: endTime,
             clearStartTime: clearStart,
             clearEndTime: clearEnd,
             color: color,
-            clearColor: color == null && task.color != null,
           );
-          final optimistic = task.copyWith(name: name, startTime: startTime, endTime: endTime, color: color);
           ref.read(weekDataProvider(mondayStr).notifier).updateTask(task, task.date!, request, optimistic);
         },
       ),

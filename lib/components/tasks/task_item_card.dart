@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:marquer/api/models/tasks/categories/task_category.dart';
 import 'package:marquer/api/models/tasks/tasks/task.dart';
 import 'package:marquer/api/models/tasks/tasks/task_status.dart';
-import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
 import 'package:marquer/components/shared/circle_checkbox.dart';
 import 'package:marquer/components/shared/status_chip.dart';
 import 'package:marquer/components/shared/task_edit_sheet.dart';
@@ -13,6 +12,7 @@ import 'package:marquer/providers/tasks/task_filter.dart';
 import 'package:marquer/providers/tasks/task_filter_provider.dart';
 import 'package:marquer/providers/tasks/task_folders_provider.dart';
 import 'package:marquer/providers/tasks/tasks_provider.dart';
+import 'package:marquer/utils/task_edit_helpers.dart';
 import 'package:marquer/utils/action_sheet.dart';
 import 'package:marquer/utils/colors.dart';
 import 'package:marquer/utils/format.dart';
@@ -76,19 +76,13 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
       builder: (_) => TaskEditSheet(
         task: widget.task,
         onSave: (name, startTime, endTime, clearStartTime, clearEndTime, color) {
-          final request = UpdateTaskRequest(
-            name: name != widget.task.name ? name : null,
+          final (:request, :optimistic) = buildUpdateRequestAndOptimistic(
+            widget.task,
+            name: name,
             startTime: startTime,
             endTime: endTime,
             clearStartTime: clearStartTime,
             clearEndTime: clearEndTime,
-            color: color,
-            clearColor: color == null && widget.task.color != null,
-          );
-          final optimistic = widget.task.copyWith(
-            name: name,
-            startTime: startTime,
-            endTime: endTime,
             color: color,
           );
           ref.read(tasksProvider.notifier).updateTask(widget.task, request, optimistic);

@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/tasks/tasks/task.dart';
 import 'package:marquer/api/models/tasks/tasks/task_status.dart';
-import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
 import 'package:marquer/components/shared/circle_checkbox.dart';
 import 'package:marquer/components/shared/status_chip.dart';
 import 'package:marquer/components/shared/task_edit_sheet.dart';
@@ -11,6 +10,7 @@ import 'package:marquer/providers/calendar/calendar_day_events_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
 import 'package:marquer/utils/colors.dart';
 import 'package:marquer/utils/format.dart';
+import 'package:marquer/utils/task_edit_helpers.dart';
 
 class DayEventTile extends ConsumerStatefulWidget {
   final Task task;
@@ -51,19 +51,13 @@ class _DayEventTileState extends ConsumerState<DayEventTile> {
       builder: (_) => TaskEditSheet(
         task: widget.task,
         onSave: (name, startTime, endTime, clearStartTime, clearEndTime, color) {
-          final request = UpdateTaskRequest(
-            name: name != widget.task.name ? name : null,
+          final (:request, :optimistic) = buildUpdateRequestAndOptimistic(
+            widget.task,
+            name: name,
             startTime: startTime,
             endTime: endTime,
             clearStartTime: clearStartTime,
             clearEndTime: clearEndTime,
-            color: color,
-            clearColor: color == null && widget.task.color != null,
-          );
-          final optimistic = widget.task.copyWith(
-            name: name,
-            startTime: startTime,
-            endTime: endTime,
             color: color,
           );
           ref.read(calendarDayEventsProvider.notifier).updateEvent(widget.task, request, optimistic);

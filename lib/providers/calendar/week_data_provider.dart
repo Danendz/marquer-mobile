@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/calendar/week_data.dart';
 import 'package:marquer/api/models/tasks/tasks/create_task_request.dart';
@@ -8,6 +9,7 @@ import 'package:marquer/api/models/tasks/tasks/task_status.dart';
 import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
 import 'package:marquer/api/services/calendar_service.dart';
 import 'package:marquer/api/services/tasks_service.dart';
+import 'package:marquer/services/toast_service.dart';
 import 'package:marquer/utils/format.dart';
 
 final weekDataProvider =
@@ -44,10 +46,11 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
       final isCompleted = await _service.togglePlanTaskCompletion(planTaskId.toString(), date);
       if (!ref.mounted) return;
       state = AsyncData(_toggleInData(state.asData!.value, planTaskId, planId, date, isCompleted));
-    } catch (_) {
+    } catch (e) {
       if (!ref.mounted) return;
-      // Rollback
       state = AsyncData(_toggleInData(state.asData?.value ?? current, planTaskId, planId, date, null));
+      debugPrint(e.toString());
+      ToastService.showError('Unable to update plan task! Try again later');
     }
   }
 
@@ -65,9 +68,11 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
       );
       if (!ref.mounted) return;
       state = AsyncData(_updateTaskInData(state.asData!.value, date, task.id, updated));
-    } catch (_) {
+    } catch (e) {
       if (!ref.mounted) return;
       state = AsyncData(_updateTaskInData(state.asData?.value ?? current, date, task.id, task));
+      debugPrint(e.toString());
+      ToastService.showError('Unable to update event! Try again later');
     }
   }
 
@@ -79,7 +84,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
 
     try {
       await _tasksService.deleteTask(task.id.toString());
-    } catch (_) {
+    } catch (e) {
       if (!ref.mounted) return;
       final latest = state.asData?.value ?? current;
       final updatedTasks = Map<String, List<Task>>.from(latest.tasks);
@@ -87,6 +92,8 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
       if (!list.any((t) => t.id == task.id)) list.insert(0, task);
       updatedTasks[date] = list;
       state = AsyncData(latest.copyWith(tasks: updatedTasks));
+      debugPrint(e.toString());
+      ToastService.showError('Unable to delete event! Try again later');
     }
   }
 
@@ -100,9 +107,11 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
       final updated = await _tasksService.updateTask(task.id.toString(), request);
       if (!ref.mounted) return;
       state = AsyncData(_updateTaskInData(state.asData!.value, date, task.id, updated));
-    } catch (_) {
+    } catch (e) {
       if (!ref.mounted) return;
       state = AsyncData(_updateTaskInData(state.asData?.value ?? current, date, task.id, task));
+      debugPrint(e.toString());
+      ToastService.showError('Unable to update event! Try again later');
     }
   }
 
@@ -132,9 +141,11 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
       );
       if (!ref.mounted) return;
       state = AsyncData(_updateTaskInData(state.asData!.value, date, placeholder.id, created));
-    } catch (_) {
+    } catch (e) {
       if (!ref.mounted) return;
       state = AsyncData(_updateTaskInData(state.asData?.value ?? current, date, placeholder.id, null));
+      debugPrint(e.toString());
+      ToastService.showError('Unable to add event! Try again later');
     }
   }
 

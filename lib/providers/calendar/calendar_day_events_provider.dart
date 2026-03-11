@@ -153,7 +153,11 @@ class CalendarDayEventsNotifier extends AsyncNotifier<List<Task>> {
     ]);
 
     try {
-      await _service.updateTask(task.id.toString(), UpdateTaskRequest(name: newName));
+      final updated = await _service.updateTask(task.id.toString(), UpdateTaskRequest(name: newName));
+      if (!ref.mounted) return;
+      state = AsyncData([
+        for (final t in state.asData!.value) if (t.id == task.id) updated else t,
+      ]);
     } catch (e) {
       if (!ref.mounted) return;
       state = AsyncData([
