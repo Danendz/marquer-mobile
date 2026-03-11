@@ -8,43 +8,9 @@ import 'package:marquer/api/models/calendar/update_plan_request.dart';
 import 'package:marquer/components/calendar/add_event_sheet.dart';
 import 'package:marquer/components/shared/color_picker_row.dart';
 import 'package:marquer/providers/calendar/plans_provider.dart';
+import 'package:marquer/screens/calendar/widgets/plan_event_list.dart';
+import 'package:marquer/screens/calendar/widgets/schedule_config.dart';
 import 'package:marquer/utils/format.dart';
-
-class _TaskItem {
-  final int? id;
-  String name;
-  int sortOrder;
-  String? startTime;
-  String? endTime;
-
-  _TaskItem({this.id, required this.name, required this.sortOrder, this.startTime, this.endTime});
-
-  TimeOfDay? get startTimeOfDay {
-    if (startTime == null) return null;
-    final parts = startTime!.split(':');
-    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-  }
-
-  TimeOfDay? get endTimeOfDay {
-    if (endTime == null) return null;
-    final parts = endTime!.split(':');
-    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-  }
-
-  void setStartTime(TimeOfDay? t) {
-    startTime = t != null ? formatTimeOfDay(t) : null;
-  }
-
-  void setEndTime(TimeOfDay? t) {
-    endTime = t != null ? formatTimeOfDay(t) : null;
-  }
-}
-
-enum _ScheduleType { daily, weekly, interval, monthlyDates, monthlyWeekday }
-
-const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const _weekOccurrenceLabels = ['First', 'Second', 'Third', 'Fourth', 'Last'];
-const _weekOccurrenceValues = [1, 2, 3, 4, -1];
 
 class PlanFormScreen extends ConsumerStatefulWidget {
   final Plan? plan;
@@ -57,7 +23,7 @@ class PlanFormScreen extends ConsumerStatefulWidget {
 
 class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
   late final TextEditingController _nameController;
-  late _ScheduleType _scheduleType;
+  late ScheduleType _scheduleType;
   late List<int> _weeklyDays;
   late int _intervalEvery;
   late List<int> _monthlyDates;
@@ -66,7 +32,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
   late DateTime _startDate;
   DateTime? _endDate;
   bool _hasEndDate = false;
-  late List<_TaskItem> _tasks;
+  late List<PlanTaskItem> _tasks;
   String? _color;
 
   bool get _isEditing => widget.plan != null;
@@ -84,11 +50,11 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
 
     if (plan != null) {
       _tasks = plan.tasks
-          .map((t) => _TaskItem(id: t.id, name: t.name, sortOrder: t.sortOrder, startTime: t.startTime, endTime: t.endTime))
+          .map((t) => PlanTaskItem(id: t.id, name: t.name, sortOrder: t.sortOrder, startTime: t.startTime, endTime: t.endTime))
           .toList();
       _initScheduleFromPlan(plan.schedule);
     } else {
-      _scheduleType = _ScheduleType.daily;
+      _scheduleType = ScheduleType.daily;
       _weeklyDays = [DateTime.now().weekday - 1]; // 0-indexed Mon
       _intervalEvery = 1;
       _monthlyDates = [DateTime.now().day];
@@ -101,35 +67,35 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
   void _initScheduleFromPlan(PlanSchedule schedule) {
     switch (schedule) {
       case DailySchedule():
-        _scheduleType = _ScheduleType.daily;
+        _scheduleType = ScheduleType.daily;
         _weeklyDays = [0];
         _intervalEvery = 1;
         _monthlyDates = [1];
         _monthlyWeekdayOccurrence = 1;
         _monthlyWeekdayDay = 0;
       case WeeklySchedule(:final days):
-        _scheduleType = _ScheduleType.weekly;
+        _scheduleType = ScheduleType.weekly;
         _weeklyDays = List.from(days);
         _intervalEvery = 1;
         _monthlyDates = [1];
         _monthlyWeekdayOccurrence = 1;
         _monthlyWeekdayDay = 0;
       case IntervalSchedule(:final every):
-        _scheduleType = _ScheduleType.interval;
+        _scheduleType = ScheduleType.interval;
         _weeklyDays = [0];
         _intervalEvery = every;
         _monthlyDates = [1];
         _monthlyWeekdayOccurrence = 1;
         _monthlyWeekdayDay = 0;
       case MonthlyDatesSchedule(:final days):
-        _scheduleType = _ScheduleType.monthlyDates;
+        _scheduleType = ScheduleType.monthlyDates;
         _weeklyDays = [0];
         _intervalEvery = 1;
         _monthlyDates = List.from(days);
         _monthlyWeekdayOccurrence = 1;
         _monthlyWeekdayDay = 0;
       case MonthlyWeekdaySchedule(:final week, :final weekday):
-        _scheduleType = _ScheduleType.monthlyWeekday;
+        _scheduleType = ScheduleType.monthlyWeekday;
         _weeklyDays = [0];
         _intervalEvery = 1;
         _monthlyDates = [1];
@@ -146,11 +112,11 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
 
   PlanSchedule _buildSchedule() {
     return switch (_scheduleType) {
-      _ScheduleType.daily => const DailySchedule(),
-      _ScheduleType.weekly => WeeklySchedule(days: List.from(_weeklyDays)),
-      _ScheduleType.interval => IntervalSchedule(every: _intervalEvery),
-      _ScheduleType.monthlyDates => MonthlyDatesSchedule(days: List.from(_monthlyDates)),
-      _ScheduleType.monthlyWeekday => MonthlyWeekdaySchedule(
+      ScheduleType.daily => const DailySchedule(),
+      ScheduleType.weekly => WeeklySchedule(days: List.from(_weeklyDays)),
+      ScheduleType.interval => IntervalSchedule(every: _intervalEvery),
+      ScheduleType.monthlyDates => MonthlyDatesSchedule(days: List.from(_monthlyDates)),
+      ScheduleType.monthlyWeekday => MonthlyWeekdaySchedule(
         week: _monthlyWeekdayOccurrence,
         weekday: _monthlyWeekdayDay,
       ),
@@ -240,7 +206,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => AddEventSheet(
         onSave: (name, startTime, endTime, date, color) {
-          setState(() => _tasks.add(_TaskItem(
+          setState(() => _tasks.add(PlanTaskItem(
             name: name,
             sortOrder: _tasks.length,
             startTime: startTime,
@@ -274,8 +240,6 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Plan' : 'New Plan'),
@@ -305,12 +269,21 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Schedule type
-          Text('Repeat', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 8),
-          _buildScheduleTypePicker(colors),
-          const SizedBox(height: 12),
-          _buildScheduleConfig(colors),
+          // Schedule
+          ScheduleConfigSection(
+            type: _scheduleType,
+            weeklyDays: _weeklyDays,
+            intervalEvery: _intervalEvery,
+            monthlyDates: _monthlyDates,
+            monthlyWeekdayOccurrence: _monthlyWeekdayOccurrence,
+            monthlyWeekdayDay: _monthlyWeekdayDay,
+            onTypeChanged: (t) => setState(() => _scheduleType = t),
+            onWeeklyDaysChanged: (d) => setState(() => _weeklyDays = d),
+            onIntervalChanged: (v) => setState(() => _intervalEvery = v),
+            onMonthlyDatesChanged: (d) => setState(() => _monthlyDates = d),
+            onMonthlyWeekdayOccurrenceChanged: (v) => setState(() => _monthlyWeekdayOccurrence = v),
+            onMonthlyWeekdayDayChanged: (v) => setState(() => _monthlyWeekdayDay = v),
+          ),
           const SizedBox(height: 20),
 
           // Dates
@@ -360,218 +333,13 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          _buildEventList(colors),
+          PlanEventList(
+            tasks: _tasks,
+            onEdit: _editEvent,
+            onDelete: (i) => setState(() => _tasks.removeAt(i)),
+          ),
           const SizedBox(height: 80),
         ],
-      ),
-    );
-  }
-
-  Widget _buildScheduleTypePicker(ColorScheme colors) {
-    return Wrap(
-      spacing: 8,
-      children: [
-        for (final type in _ScheduleType.values)
-          ChoiceChip(
-            label: Text(_scheduleTypeLabel(type)),
-            selected: _scheduleType == type,
-            onSelected: (_) => setState(() => _scheduleType = type),
-          ),
-      ],
-    );
-  }
-
-  String _scheduleTypeLabel(_ScheduleType type) {
-    return switch (type) {
-      _ScheduleType.daily => 'Daily',
-      _ScheduleType.weekly => 'Weekly',
-      _ScheduleType.interval => 'Interval',
-      _ScheduleType.monthlyDates => 'Monthly dates',
-      _ScheduleType.monthlyWeekday => 'Monthly weekday',
-    };
-  }
-
-  Widget _buildScheduleConfig(ColorScheme colors) {
-    return switch (_scheduleType) {
-      _ScheduleType.daily => const SizedBox.shrink(),
-      _ScheduleType.weekly => _buildWeeklyConfig(),
-      _ScheduleType.interval => _buildIntervalConfig(),
-      _ScheduleType.monthlyDates => _buildMonthlyDatesConfig(),
-      _ScheduleType.monthlyWeekday => _buildMonthlyWeekdayConfig(colors),
-    };
-  }
-
-  Widget _buildWeeklyConfig() {
-    return Wrap(
-      spacing: 6,
-      children: List.generate(7, (i) {
-        final selected = _weeklyDays.contains(i);
-        return FilterChip(
-          label: Text(_weekdayLabels[i]),
-          selected: selected,
-          onSelected: (v) => setState(() {
-            if (v) {
-              _weeklyDays.add(i);
-            } else if (_weeklyDays.length > 1) {
-              _weeklyDays.remove(i);
-            }
-          }),
-        );
-      }),
-    );
-  }
-
-  Widget _buildIntervalConfig() {
-    return Row(
-      children: [
-        const Text('Every'),
-        const SizedBox(width: 12),
-        IconButton(
-          onPressed: _intervalEvery > 1 ? () => setState(() => _intervalEvery--) : null,
-          icon: const Icon(Icons.remove),
-        ),
-        Text('$_intervalEvery', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-        IconButton(
-          onPressed: () => setState(() => _intervalEvery++),
-          icon: const Icon(Icons.add),
-        ),
-        const Text('days'),
-      ],
-    );
-  }
-
-  Widget _buildMonthlyDatesConfig() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const spacing = 4.0;
-        final chipWidth = (constraints.maxWidth - spacing * 6) / 7;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: List.generate(31, (i) {
-            final day = i + 1;
-            final selected = _monthlyDates.contains(day);
-            return SizedBox(
-              width: chipWidth,
-              child: FilterChip(
-                label: Center(child: Text('$day', style: const TextStyle(fontSize: 13))),
-                selected: selected,
-                showCheckmark: false,
-                onSelected: (v) => setState(() {
-                  if (v) {
-                    _monthlyDates.add(day);
-                  } else if (_monthlyDates.length > 1) {
-                    _monthlyDates.remove(day);
-                  }
-                }),
-                labelPadding: EdgeInsets.zero,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            );
-          }),
-        );
-      },
-    );
-  }
-
-  Widget _buildMonthlyWeekdayConfig(ColorScheme colors) {
-    return Row(
-      children: [
-        Expanded(
-          child: DropdownButtonFormField<int>(
-            initialValue: _weekOccurrenceValues.contains(_monthlyWeekdayOccurrence)
-                ? _monthlyWeekdayOccurrence
-                : 1,
-            decoration: const InputDecoration(labelText: 'Occurrence', border: OutlineInputBorder()),
-            items: List.generate(_weekOccurrenceLabels.length, (i) => DropdownMenuItem(
-              value: _weekOccurrenceValues[i],
-              child: Text(_weekOccurrenceLabels[i]),
-            )),
-            onChanged: (v) => setState(() => _monthlyWeekdayOccurrence = v!),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: DropdownButtonFormField<int>(
-            initialValue: _monthlyWeekdayDay,
-            decoration: const InputDecoration(labelText: 'Weekday', border: OutlineInputBorder()),
-            items: List.generate(7, (i) => DropdownMenuItem(
-              value: i,
-              child: Text(_weekdayLabels[i]),
-            )),
-            onChanged: (v) => setState(() => _monthlyWeekdayDay = v!),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEventList(ColorScheme colors) {
-    if (_tasks.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Center(
-          child: Text(
-            'No events yet. Tap Add to create one.',
-            style: TextStyle(color: colors.onSurface.withValues(alpha: 0.5)),
-          ),
-        ),
-      );
-    }
-    return Column(
-      children: [
-        for (int index = 0; index < _tasks.length; index++)
-          _buildEventTile(index, colors),
-      ],
-    );
-  }
-
-  Widget _buildEventTile(int index, ColorScheme colors) {
-    final task = _tasks[index];
-    return GestureDetector(
-      onTap: () => _editEvent(index),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: colors.surfaceContainer,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.circle_outlined, size: 20, color: colors.onSurface.withValues(alpha: 0.4)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    task.name,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  if (task.startTime != null) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.access_time, size: 12, color: colors.onSurfaceVariant),
-                        const SizedBox(width: 4),
-                        Text(
-                          formatTimeRange(task.startTime, task.endTime),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, size: 20),
-              onPressed: () => setState(() => _tasks.removeAt(index)),
-              visualDensity: VisualDensity.compact,
-            ),
-          ],
-        ),
       ),
     );
   }

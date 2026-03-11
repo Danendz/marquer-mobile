@@ -1,28 +1,25 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/calendar/week_data.dart';
 import 'package:marquer/api/models/tasks/tasks/task.dart';
-import 'package:marquer/api/models/tasks/tasks/task_status.dart';
 import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
 import 'package:marquer/components/calendar/add_event_sheet.dart';
-import 'package:marquer/components/calendar/calendar_settings_sheet.dart';
+import 'package:marquer/components/calendar/week_view/all_day_row.dart';
+import 'package:marquer/components/calendar/week_view/current_time_indicator.dart';
+import 'package:marquer/components/calendar/week_view/day_column.dart';
+import 'package:marquer/components/calendar/week_view/day_headers.dart';
+import 'package:marquer/components/calendar/week_view/task_detail_sheet.dart';
+import 'package:marquer/components/calendar/week_view/time_grid.dart';
 import 'package:marquer/components/calendar/week_view/week_event.dart';
+import 'package:marquer/components/calendar/week_view/week_view_constants.dart';
 import 'package:marquer/components/shared/task_edit_sheet.dart';
 import 'package:marquer/providers/calendar/calendar_selected_date_provider.dart';
 import 'package:marquer/providers/calendar/calendar_settings_provider.dart';
 import 'package:marquer/providers/calendar/week_data_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
-import 'package:marquer/utils/colors.dart';
 import 'package:marquer/utils/format.dart';
-
-const double _kPixelsPerHour = 60.0;
-const double _kPixelsPerMinute = _kPixelsPerHour / 60;
-const double _kTimeGutter = 44.0;
-const double _kDayCount = 7;
 
 class WeekView extends ConsumerStatefulWidget {
   const WeekView({super.key});
@@ -36,7 +33,7 @@ class _WeekViewState extends ConsumerState<WeekView> {
   late DateTime _baseMonday;
   static const int _kInitialPage = 1000;
   double _scrollOffset =
-      ((DateTime.now().hour * _kPixelsPerHour) - 80).clamp(0.0, double.infinity);
+      ((DateTime.now().hour * kPixelsPerHour) - 80).clamp(0.0, double.infinity);
 
   @override
   void initState() {
@@ -134,7 +131,7 @@ class _WeekPageState extends ConsumerState<_WeekPage> {
 
     return Column(
       children: [
-        _DayHeaders(days: days, selected: selected, today: todayStr, colorScheme: colorScheme),
+        DayHeaders(days: days, selected: selected, today: todayStr, colorScheme: colorScheme),
         weekAsync.when(
           loading: () => const Expanded(child: Center(child: CircularProgressIndicator())),
           error: (e, _) => const Expanded(child: Center(child: Text('Failed to load'))),
@@ -147,106 +144,6 @@ class _WeekPageState extends ConsumerState<_WeekPage> {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _DayHeaders extends ConsumerWidget {
-  final List<DateTime> days;
-  final DateTime selected;
-  final String today;
-  final ColorScheme colorScheme;
-
-  const _DayHeaders({
-    required this.days,
-    required this.selected,
-    required this.today,
-    required this.colorScheme,
-  });
-
-  static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final selectedStr = formatDate(selected);
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant, width: 0.5)),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: _kTimeGutter,
-            child: Center(
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: Icon(Icons.settings_outlined, size: 22, color: colorScheme.onSurface.withValues(alpha: 0.4)),
-                onPressed: () => showModalBottomSheet(
-                  context: context,
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                  ),
-                  builder: (_) => const CalendarSettingsSheet(),
-                ),
-              ),
-            ),
-          ),
-          ...List.generate(7, (i) {
-          final day = days[i];
-          final dateStr = formatDate(day);
-          final isToday = dateStr == today;
-          final isSelected = dateStr == selectedStr;
-
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => ref.read(calendarSelectedDateProvider.notifier).select(day),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  children: [
-                    Text(
-                      _dayLabels[i],
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isToday
-                            ? colorScheme.primary
-                            : isSelected
-                                ? colorScheme.primaryContainer
-                                : Colors.transparent,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${day.day}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isToday
-                              ? colorScheme.onPrimary
-                              : isSelected
-                                  ? colorScheme.onPrimaryContainer
-                                  : colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
-        ],
-      ),
     );
   }
 }
@@ -308,7 +205,7 @@ class _WeekBody extends ConsumerWidget {
       child: Column(
         children: [
           if (hasAllDay)
-            _AllDayRow(
+            AllDayRow(
               days: days,
               allDayEventsByDay: allDayEventsByDay,
               colorScheme: colorScheme,
@@ -319,29 +216,28 @@ class _WeekBody extends ConsumerWidget {
             child: SingleChildScrollView(
               controller: scrollController,
               child: SizedBox(
-                height: 24 * _kPixelsPerHour,
+                height: 24 * kPixelsPerHour,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final columnWidth = (constraints.maxWidth - _kTimeGutter) / _kDayCount;
+                    final columnWidth = (constraints.maxWidth - kTimeGutter) / kDayCount;
                     return Stack(
                       children: [
-                        // Time gutter labels — explicit position so the all-Positioned inner Stack
-                        // doesn't get 0 intrinsic height and land in unexpected place
+                        // Time gutter labels
                         Positioned(
                           left: 0,
                           top: 0,
                           bottom: 0,
                           child: SizedBox(
-                            width: _kTimeGutter,
-                            child: _TimeGrid(colorScheme: colorScheme, hourInterval: hourInterval),
+                            width: kTimeGutter,
+                            child: TimeGrid(colorScheme: colorScheme, hourInterval: hourInterval),
                           ),
                         ),
                         // Full-width hour lines
                         ...List.generate(24 ~/ hourInterval, (i) {
                           final hour = i * hourInterval;
                           return Positioned(
-                            top: hour * _kPixelsPerHour,
-                            left: _kTimeGutter,
+                            top: hour * kPixelsPerHour,
+                            left: kTimeGutter,
                             right: 0,
                             child: Container(
                               height: 0.5,
@@ -354,7 +250,7 @@ class _WeekBody extends ConsumerWidget {
                           return Positioned(
                             top: 0,
                             bottom: 0,
-                            left: _kTimeGutter + columnWidth * (i + 1),
+                            left: kTimeGutter + columnWidth * (i + 1),
                             child: Container(
                               width: 1,
                               color: colorScheme.outlineVariant,
@@ -363,7 +259,7 @@ class _WeekBody extends ConsumerWidget {
                         }),
                         // Event columns
                         Positioned(
-                          left: _kTimeGutter,
+                          left: kTimeGutter,
                           top: 0,
                           right: 0,
                           bottom: 0,
@@ -371,7 +267,7 @@ class _WeekBody extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: List.generate(7, (i) {
                               return Expanded(
-                                child: _DayColumn(
+                                child: DayColumn(
                                   events: timedEventsByDay[i],
                                   colorScheme: colorScheme,
                                   onEventTap: (event) => _handleTap(event, ref, context),
@@ -383,7 +279,7 @@ class _WeekBody extends ConsumerWidget {
                           ),
                         ),
                         // Current time indicator
-                        _CurrentTimeIndicator(colorScheme: colorScheme),
+                        CurrentTimeIndicator(colorScheme: colorScheme),
                       ],
                     );
                   },
@@ -412,9 +308,8 @@ class _WeekBody extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _TaskDetailSheet(
+      builder: (ctx) => TaskDetailSheet(
         task: task,
-        mondayStr: mondayStr,
         onEdit: () => _showEditSheet(context, ref, task),
         onDelete: () => ref.read(weekDataProvider(mondayStr).notifier).deleteTask(task, task.date!),
         onToggle: () => ref.read(weekDataProvider(mondayStr).notifier).toggleTask(task, task.date!),
@@ -483,654 +378,6 @@ class _WeekBody extends ConsumerWidget {
         weekDays: days,
         onSave: (name, start, end, date, color) =>
             ref.read(weekDataProvider(mondayStr).notifier).addTask(name, date, startTime: start, endTime: end, color: color),
-      ),
-    );
-  }
-}
-
-class _TaskDetailSheet extends ConsumerWidget {
-  final Task task;
-  final String mondayStr;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final VoidCallback onToggle;
-
-  const _TaskDetailSheet({
-    required this.task,
-    required this.mondayStr,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDone = task.status == TaskStatus.done;
-
-    String? timeRange;
-    if (task.startTime != null && task.endTime != null) {
-      timeRange = '${task.startTime} – ${task.endTime}';
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 8),
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colorScheme.onSurface.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    task.name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    onToggle();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isDone
-                          ? colorScheme.primaryContainer
-                          : colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isDone ? Icons.check_circle : Icons.radio_button_unchecked,
-                          size: 16,
-                          color: isDone ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          isDone ? 'Done' : 'Not done',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDone ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (timeRange != null) ...[
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Icon(Icons.access_time, size: 14, color: colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 6),
-                  Text(
-                    timeRange,
-                    style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      onEdit();
-                    },
-                    icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: const Text('Edit'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      onDelete();
-                    },
-                    icon: Icon(Icons.delete_outline, size: 16, color: colorScheme.error),
-                    label: Text('Delete', style: TextStyle(color: colorScheme.error)),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: colorScheme.error),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AllDayRow extends StatelessWidget {
-  final List<DateTime> days;
-  final List<List<WeekEvent>> allDayEventsByDay;
-  final ColorScheme colorScheme;
-  final void Function(WeekEvent) onEventTap;
-  final void Function(WeekEvent)? onEventLongPress;
-
-  const _AllDayRow({
-    required this.days,
-    required this.allDayEventsByDay,
-    required this.colorScheme,
-    required this.onEventTap,
-    this.onEventLongPress,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant, width: 0.5)),
-      ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: _kTimeGutter,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  'All day',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-            ),
-            ...List.generate(7, (i) {
-              final events = allDayEventsByDay[i];
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: events.map((e) {
-                      final isDone = e.isDone;
-                      return GestureDetector(
-                        onTap: () => onEventTap(e),
-                        onLongPress: () => onEventLongPress?.call(e),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 3),
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: e.color.withValues(alpha: isDone ? 0.12 : 0.2),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border(
-                              left: BorderSide(color: e.color, width: 3),
-                            ),
-                          ),
-                          child: Text(
-                            e.name,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: e.color,
-                              decoration: isDone ? TextDecoration.lineThrough : null,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TimeGrid extends StatelessWidget {
-  final ColorScheme colorScheme;
-  final int hourInterval;
-
-  const _TimeGrid({required this.colorScheme, this.hourInterval = 1});
-
-  @override
-  Widget build(BuildContext context) {
-    final count = 24 ~/ hourInterval;
-    return SizedBox(
-      width: _kTimeGutter,
-      child: Stack(
-        children: List.generate(count, (i) {
-          final hour = i * hourInterval;
-          return Positioned(
-            top: (hour * _kPixelsPerHour - 7).clamp(0.0, double.infinity),
-            left: 0,
-            right: 4,
-            child: Text(
-              '${hour.toString().padLeft(2, '0')}:00',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 9,
-                color: colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-class _DayColumn extends StatelessWidget {
-  final List<WeekEvent> events;
-  final ColorScheme colorScheme;
-  final void Function(WeekEvent) onEventTap;
-  final void Function(WeekEvent)? onEventLongPress;
-  final void Function(int minutes)? onEmptyTap;
-
-  const _DayColumn({
-    required this.events,
-    required this.colorScheme,
-    required this.onEventTap,
-    this.onEventLongPress,
-    this.onEmptyTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        return _buildColumn(context, width);
-      },
-    );
-  }
-
-  Widget _buildColumn(BuildContext context, double width) {
-    final positioned = _layoutEvents(events, width);
-
-    // Group PlanTaskEvents by planId for background rendering
-    final planGroups = <int, List<PlanTaskEvent>>{};
-    for (final event in events) {
-      if (event is PlanTaskEvent) {
-        planGroups.putIfAbsent(event.planId, () => []).add(event);
-      }
-    }
-
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onLongPressStart: (details) {
-        final minutes = (details.localPosition.dy / _kPixelsPerMinute).round();
-        onEmptyTap?.call(minutes);
-      },
-      child: Stack(
-        children: [
-          // Plan group backgrounds (rendered before events)
-          ...planGroups.entries.map((entry) {
-              final planEvents = entry.value;
-              final minStart = planEvents.map((e) => e.startMinutes).reduce((a, b) => a < b ? a : b);
-              final maxEnd = planEvents
-                  .map((e) => e.startMinutes + e.durationMinutes)
-                  .reduce((a, b) => a > b ? a : b);
-              final top = (minStart * _kPixelsPerMinute) - 12;
-              final bgHeight = (((maxEnd - minStart) * _kPixelsPerMinute) + 12).clamp(18.0, double.infinity);
-              final planName = planEvents.first.planName;
-              final planColor = planEvents.first.planTask.planColor != null
-                  ? hexToColor(planEvents.first.planTask.planColor!)
-                  : Colors.amber;
-              return Positioned(
-                top: top,
-                left: 1.5,
-                width: width - 3,
-                height: bgHeight,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: planColor.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  padding: const EdgeInsets.only(left: 3, top: 1),
-                  child: Text(
-                    planName,
-                    style: TextStyle(fontSize: 8, color: planColor.withValues(alpha: 0.85)),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
-              );
-            }),
-            // Events
-            ...positioned.map((p) {
-              final event = p.event;
-              final top = event.startMinutes * _kPixelsPerMinute;
-              final height = (event.durationMinutes * _kPixelsPerMinute).clamp(18.0, double.infinity);
-              final isDone = event.isDone;
-
-              return Positioned(
-                top: top,
-                left: p.left + 1.5,
-                width: p.width - 3,
-                height: height,
-                child: GestureDetector(
-                  onTap: () => onEventTap(event),
-                  onLongPress: () => onEventLongPress?.call(event),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: event.color.withValues(alpha: isDone ? 0.12 : 0.2),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border(
-                            left: BorderSide(color: event.color, width: 2),
-                          ),
-                        ),
-                        padding: const EdgeInsets.only(left: 4, top: 2, right: 2),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (event.startTime != null)
-                              Text(
-                                event.shortTimeRange,
-                                style: TextStyle(
-                                  fontSize: 8,
-                                  color: event.color.withValues(alpha: 0.7),
-                                  decoration: isDone ? TextDecoration.lineThrough : null,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            Expanded(
-                              child: Text(
-                                event.name,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: event.color,
-                                  decoration: isDone ? TextDecoration.lineThrough : null,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Subtle bottom separator
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: Container(height: 0.5, color: colorScheme.outlineVariant),
-                      ),
-                      // "+N" overflow badge
-                      if (p.overflowCount > 0)
-                        Positioned(
-                          top: 2,
-                          right: 2,
-                          child: GestureDetector(
-                            onTap: () => _showOverflowSheet(context, p.overflowEvents),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: event.color.withValues(alpha: 0.85),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '+${p.overflowCount}',
-                                style: const TextStyle(
-                                  fontSize: 8,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ],
-        ),
-      );
-  }
-
-  void _showOverflowSheet(BuildContext context, List<WeekEvent> overflowEvents) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        final cs = Theme.of(ctx).colorScheme;
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: cs.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'More events',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: cs.onSurface),
-              ),
-              const SizedBox(height: 8),
-              ...overflowEvents.map((e) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 3,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: e.color,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(e.name, style: TextStyle(fontSize: 13, color: cs.onSurface)),
-                          if (e.timeRange.isNotEmpty)
-                            Text(
-                              e.timeRange,
-                              style: TextStyle(fontSize: 11, color: cs.onSurface.withValues(alpha: 0.6)),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              )),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  List<_PositionedEvent> _layoutEvents(List<WeekEvent> events, double columnWidth) {
-    if (events.isEmpty) return [];
-
-    final sorted = [...events]..sort((a, b) => a.startMinutes.compareTo(b.startMinutes));
-    final clusters = _buildClusters(sorted);
-    final result = <_PositionedEvent>[];
-
-    for (final cluster in clusters) {
-      if (cluster.length >= 3) {
-        // 3+ overlapping: first event full-width, rest hidden behind "+N" badge
-        final first = cluster.first;
-        result.add(_PositionedEvent(
-          event: first,
-          left: 0,
-          width: columnWidth,
-          colIndex: 0,
-          overflowCount: cluster.length - 1,
-          overflowEvents: cluster.skip(1).toList(),
-        ));
-      } else {
-        // 1 or 2 events: side-by-side columns within cluster
-        final subCols = <List<WeekEvent>>[];
-        for (final event in cluster) {
-          int col = -1;
-          for (int i = 0; i < subCols.length; i++) {
-            final last = subCols[i].last;
-            if (event.startMinutes >= last.startMinutes + last.durationMinutes) {
-              col = i;
-              break;
-            }
-          }
-          if (col == -1) {
-            col = subCols.length;
-            subCols.add([]);
-          }
-          subCols[col].add(event);
-        }
-        final totalCols = subCols.length;
-        final w = columnWidth / totalCols;
-        for (int c = 0; c < subCols.length; c++) {
-          for (final event in subCols[c]) {
-            result.add(_PositionedEvent(event: event, left: c * w, width: w, colIndex: c));
-          }
-        }
-      }
-    }
-
-    return result;
-  }
-
-  /// Groups events into overlap clusters (transitive closure of pairwise overlap).
-  List<List<WeekEvent>> _buildClusters(List<WeekEvent> sorted) {
-    final clusters = <List<WeekEvent>>[];
-    for (final event in sorted) {
-      bool added = false;
-      for (final cluster in clusters) {
-        final overlaps = cluster.any((e) =>
-          event.startMinutes < e.startMinutes + e.durationMinutes &&
-          e.startMinutes < event.startMinutes + event.durationMinutes);
-        if (overlaps) {
-          cluster.add(event);
-          added = true;
-          break;
-        }
-      }
-      if (!added) clusters.add([event]);
-    }
-    return clusters;
-  }
-}
-
-class _PositionedEvent {
-  final WeekEvent event;
-  final double left;
-  final double width;
-  final int colIndex;
-  final int overflowCount;
-  final List<WeekEvent> overflowEvents;
-
-  const _PositionedEvent({
-    required this.event,
-    required this.left,
-    required this.width,
-    required this.colIndex,
-    this.overflowCount = 0,
-    this.overflowEvents = const [],
-  });
-}
-
-class _CurrentTimeIndicator extends StatefulWidget {
-  final ColorScheme colorScheme;
-
-  const _CurrentTimeIndicator({required this.colorScheme});
-
-  @override
-  State<_CurrentTimeIndicator> createState() => _CurrentTimeIndicatorState();
-}
-
-class _CurrentTimeIndicatorState extends State<_CurrentTimeIndicator> {
-  late Timer _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(minutes: 1), (_) => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _timer.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final minutes = now.hour * 60 + now.minute;
-    final top = minutes * _kPixelsPerMinute;
-
-    return Positioned(
-      top: top,
-      left: _kTimeGutter - 4,
-      right: 0,
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: widget.colorScheme.primary,
-            ),
-          ),
-          Expanded(
-            child: Container(height: 1.5, color: widget.colorScheme.primary),
-          ),
-        ],
       ),
     );
   }
