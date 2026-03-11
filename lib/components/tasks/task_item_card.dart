@@ -75,18 +75,21 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
       backgroundColor: Colors.transparent,
       builder: (_) => TaskEditSheet(
         task: widget.task,
-        onSave: (name, startTime, endTime, clearStartTime, clearEndTime) {
+        onSave: (name, startTime, endTime, clearStartTime, clearEndTime, color) {
           final request = UpdateTaskRequest(
             name: name != widget.task.name ? name : null,
             startTime: startTime,
             endTime: endTime,
             clearStartTime: clearStartTime,
             clearEndTime: clearEndTime,
+            color: color,
+            clearColor: color == null && widget.task.color != null,
           );
           final optimistic = widget.task.copyWith(
             name: name,
             startTime: startTime,
             endTime: endTime,
+            color: color,
           );
           ref.read(tasksProvider.notifier).updateTask(widget.task, request, optimistic);
         },
@@ -108,6 +111,7 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
     final colors = getColors(context);
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final taskColor = widget.task.color != null ? hexToColor(widget.task.color!) : colors.primary;
 
     final filter = ref.watch(taskFilterProvider);
     final isDeletedView = filter is RecentlyDeletedFilter;
@@ -140,7 +144,7 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
                   onTap: (isDeletedView || _isCancelled)
                       ? null
                       : () => ref.read(tasksProvider.notifier).toggleTaskStatus(widget.task),
-                  color: colors.primary,
+                  color: taskColor,
                 ),
                 const SizedBox(width: 12),
                 Expanded(

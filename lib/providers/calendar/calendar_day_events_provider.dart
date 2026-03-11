@@ -24,7 +24,7 @@ class CalendarDayEventsNotifier extends AsyncNotifier<List<Task>> {
     return _service.getTasks(GetTasksRequest(date: formatDate(selected)));
   }
 
-  Future<void> addEvent(String name, {String? startTime, String? endTime, String? date}) async {
+  Future<void> addEvent(String name, {String? startTime, String? endTime, String? date, String? color}) async {
     final current = state.asData?.value;
     if (current == null) return;
     final taskDate = date ?? formatDate(ref.read(calendarSelectedDateProvider));
@@ -36,6 +36,7 @@ class CalendarDayEventsNotifier extends AsyncNotifier<List<Task>> {
       date: taskDate,
       startTime: startTime,
       endTime: endTime,
+      color: color,
       createdAt: DateTime.now().toIso8601String(),
       updatedAt: DateTime.now().toIso8601String(),
     );
@@ -44,7 +45,7 @@ class CalendarDayEventsNotifier extends AsyncNotifier<List<Task>> {
 
     try {
       final created = await _service.createTask(
-        CreateTaskRequest(name: name, date: taskDate, startTime: startTime, endTime: endTime),
+        CreateTaskRequest(name: name, date: taskDate, startTime: startTime, endTime: endTime, color: color),
       );
       if (!ref.mounted) return;
       state = AsyncData([

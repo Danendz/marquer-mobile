@@ -9,13 +9,15 @@ import 'package:marquer/utils/format.dart';
 class PlanTaskTile extends ConsumerWidget {
   final int planId;
   final PlanTaskForDate task;
+  final String? planColor;
 
-  const PlanTaskTile({super.key, required this.planId, required this.task});
+  const PlanTaskTile({super.key, required this.planId, required this.task, this.planColor});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = getColors(context);
     final colorScheme = Theme.of(context).colorScheme;
+    final checkColor = planColor != null ? hexToColor(planColor!) : colors.primary;
     final textTheme = Theme.of(context).textTheme;
 
     final hasTime = task.startTime != null;
@@ -36,7 +38,7 @@ class PlanTaskTile extends ConsumerWidget {
               children: [
                 CircleCheckbox(
                   checked: task.isCompleted,
-                  color: colors.primary,
+                  color: checkColor,
                   onTap: () => ref.read(dayPlansProvider.notifier).toggleTask(planId, task.id),
                 ),
                 const SizedBox(width: 12),

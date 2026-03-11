@@ -9,6 +9,8 @@ class UpdateTaskRequest {
   final TaskStatus? status;
   final bool clearStartTime;
   final bool clearEndTime;
+  final String? color;
+  final bool clearColor;
 
   UpdateTaskRequest({
     this.name,
@@ -19,6 +21,8 @@ class UpdateTaskRequest {
     this.status,
     this.clearStartTime = false,
     this.clearEndTime = false,
+    this.color,
+    this.clearColor = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -28,5 +32,6 @@ class UpdateTaskRequest {
     if (clearEndTime) 'end_time': null else if (endTime != null) 'end_time': endTime,
     if (taskCategoryId != null) 'task_category_id': taskCategoryId,
     if (status != null) 'status': status!.name,
+    if (clearColor) 'color': null else if (color != null) 'color': color,
   };
 }

@@ -16,6 +16,7 @@ import 'package:marquer/providers/calendar/calendar_selected_date_provider.dart'
 import 'package:marquer/providers/calendar/calendar_settings_provider.dart';
 import 'package:marquer/providers/calendar/week_data_provider.dart';
 import 'package:marquer/utils/action_sheet.dart';
+import 'package:marquer/utils/colors.dart';
 import 'package:marquer/utils/format.dart';
 
 const double _kPixelsPerHour = 60.0;
@@ -270,7 +271,7 @@ class _WeekBody extends ConsumerWidget {
     final events = <WeekEvent>[];
 
     for (final task in data.tasks[dateStr] ?? []) {
-      events.add(TaskEvent(task));
+      events.add(TaskEvent(task, colors.primary));
     }
     for (final pt in data.planTasks[dateStr] ?? []) {
       events.add(PlanTaskEvent(pt, dateStr));
@@ -449,15 +450,17 @@ class _WeekBody extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       builder: (_) => TaskEditSheet(
         task: task,
-        onSave: (name, startTime, endTime, clearStart, clearEnd) {
+        onSave: (name, startTime, endTime, clearStart, clearEnd, color) {
           final request = UpdateTaskRequest(
             name: name != task.name ? name : null,
             startTime: startTime,
             endTime: endTime,
             clearStartTime: clearStart,
             clearEndTime: clearEnd,
+            color: color,
+            clearColor: color == null && task.color != null,
           );
-          final optimistic = task.copyWith(name: name, startTime: startTime, endTime: endTime);
+          final optimistic = task.copyWith(name: name, startTime: startTime, endTime: endTime, color: color);
           ref.read(weekDataProvider(mondayStr).notifier).updateTask(task, task.date!, request, optimistic);
         },
       ),
@@ -478,8 +481,8 @@ class _WeekBody extends ConsumerWidget {
         initialEndTime: endTime,
         initialDate: formatDate(days[dayIndex]),
         weekDays: days,
-        onSave: (name, start, end, date) =>
-            ref.read(weekDataProvider(mondayStr).notifier).addTask(name, date, startTime: start, endTime: end),
+        onSave: (name, start, end, date, color) =>
+            ref.read(weekDataProvider(mondayStr).notifier).addTask(name, date, startTime: start, endTime: end, color: color),
       ),
     );
   }
@@ -804,6 +807,9 @@ class _DayColumn extends StatelessWidget {
               final top = (minStart * _kPixelsPerMinute) - 12;
               final bgHeight = (((maxEnd - minStart) * _kPixelsPerMinute) + 12).clamp(18.0, double.infinity);
               final planName = planEvents.first.planName;
+              final planColor = planEvents.first.planTask.planColor != null
+                  ? hexToColor(planEvents.first.planTask.planColor!)
+                  : Colors.amber;
               return Positioned(
                 top: top,
                 left: 1.5,
@@ -811,13 +817,13 @@ class _DayColumn extends StatelessWidget {
                 height: bgHeight,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.08),
+                    color: planColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   padding: const EdgeInsets.only(left: 3, top: 1),
                   child: Text(
                     planName,
-                    style: TextStyle(fontSize: 8, color: Colors.amber.shade700),
+                    style: TextStyle(fontSize: 8, color: planColor.withValues(alpha: 0.85)),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),

@@ -106,7 +106,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
     }
   }
 
-  Future<void> addTask(String name, String date, {String? startTime, String? endTime}) async {
+  Future<void> addTask(String name, String date, {String? startTime, String? endTime, String? color}) async {
     final current = state.asData?.value;
     if (current == null) return;
 
@@ -117,6 +117,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
       date: date,
       startTime: startTime,
       endTime: endTime,
+      color: color,
       createdAt: DateTime.now().toIso8601String(),
       updatedAt: DateTime.now().toIso8601String(),
     );
@@ -127,7 +128,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
 
     try {
       final created = await _tasksService.createTask(
-        CreateTaskRequest(name: name, date: date, startTime: startTime, endTime: endTime),
+        CreateTaskRequest(name: name, date: date, startTime: startTime, endTime: endTime, color: color),
       );
       if (!ref.mounted) return;
       state = AsyncData(_updateTaskInData(state.asData!.value, date, placeholder.id, created));

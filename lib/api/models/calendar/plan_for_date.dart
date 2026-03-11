@@ -37,23 +37,27 @@ class PlanTaskForDate {
 class PlanForDate {
   final int id;
   final String name;
+  final String? color;
   final List<PlanTaskForDate> tasks;
 
   const PlanForDate({
     required this.id,
     required this.name,
+    this.color,
     required this.tasks,
   });
 
   factory PlanForDate.fromJson(Map<String, dynamic> json) => PlanForDate(
     id: json['id'] as int,
     name: json['name'] as String,
+    color: json['color'] as String?,
     tasks: (json['tasks'] as List).map((t) => PlanTaskForDate.fromJson(t as Map<String, dynamic>)).toList(),
   );
 
   PlanForDate copyWith({List<PlanTaskForDate>? tasks}) => PlanForDate(
     id: id,
     name: name,
+    color: color,
     tasks: tasks ?? this.tasks,
   );
 }

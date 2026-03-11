@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:marquer/api/models/tasks/tasks/task.dart';
+import 'package:marquer/components/shared/color_picker_row.dart';
 import 'package:marquer/utils/format.dart';
 
 class TaskEditSheet extends StatefulWidget {
@@ -10,6 +11,7 @@ class TaskEditSheet extends StatefulWidget {
     String? endTime,
     bool clearStartTime,
     bool clearEndTime,
+    String? color,
   ) onSave;
 
   const TaskEditSheet({super.key, required this.task, required this.onSave});
@@ -22,6 +24,7 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
   late final TextEditingController _nameController;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
+  String? _color;
 
   @override
   void initState() {
@@ -29,6 +32,7 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
     _nameController = TextEditingController(text: widget.task.name);
     _startTime = _parseTime(widget.task.startTime);
     _endTime = _parseTime(widget.task.endTime);
+    _color = widget.task.color;
   }
 
   @override
@@ -93,6 +97,7 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
       newEndStr,
       hadStartTime && _startTime == null,
       hadEndTime && _endTime == null,
+      _color,
     );
   }
 
@@ -133,6 +138,11 @@ class _TaskEditSheetState extends State<TaskEditSheet> {
                   autofocus: true,
                   decoration: const InputDecoration(hintText: 'Task name'),
                   onSubmitted: (_) => _save(),
+                ),
+                const SizedBox(height: 12),
+                ColorPickerRow(
+                  selectedColor: _color,
+                  onColorChanged: (c) => setState(() => _color = c),
                 ),
                 const SizedBox(height: 12),
                 Row(

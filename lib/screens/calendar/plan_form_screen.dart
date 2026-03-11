@@ -6,6 +6,7 @@ import 'package:marquer/api/models/calendar/plan.dart';
 import 'package:marquer/api/models/calendar/plan_schedule.dart';
 import 'package:marquer/api/models/calendar/update_plan_request.dart';
 import 'package:marquer/components/calendar/add_event_sheet.dart';
+import 'package:marquer/components/shared/color_picker_row.dart';
 import 'package:marquer/providers/calendar/plans_provider.dart';
 import 'package:marquer/utils/format.dart';
 
@@ -66,6 +67,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
   DateTime? _endDate;
   bool _hasEndDate = false;
   late List<_TaskItem> _tasks;
+  String? _color;
 
   bool get _isEditing => widget.plan != null;
 
@@ -78,6 +80,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
     _startDate = plan != null ? DateTime.parse(plan.startDate) : DateTime.now();
     _endDate = plan?.endDate != null ? DateTime.parse(plan!.endDate!) : null;
     _hasEndDate = _endDate != null;
+    _color = plan?.color;
 
     if (plan != null) {
       _tasks = plan.tasks
@@ -200,6 +203,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
         schedule: schedule,
         startDate: startDate,
         endDate: endDate,
+        color: _color,
         tasks: validTasks.asMap().entries.map((e) => UpdatePlanTaskRequest(
           id: e.value.id,
           name: e.value.name.trim(),
@@ -215,6 +219,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
         schedule: schedule,
         startDate: startDate,
         endDate: endDate,
+        color: _color,
         tasks: validTasks.asMap().entries.map((e) => CreatePlanTaskRequest(
           name: e.value.name.trim(),
           sortOrder: e.key,
@@ -234,7 +239,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => AddEventSheet(
-        onSave: (name, startTime, endTime, _) {
+        onSave: (name, startTime, endTime, date, color) {
           setState(() => _tasks.add(_TaskItem(
             name: name,
             sortOrder: _tasks.length,
@@ -256,7 +261,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
         initialName: task.name,
         initialStartTime: task.startTimeOfDay,
         initialEndTime: task.endTimeOfDay,
-        onSave: (name, startTime, endTime, _) {
+        onSave: (name, startTime, endTime, date, color) {
           setState(() {
             _tasks[index].name = name;
             _tasks[index].startTime = startTime;
@@ -292,6 +297,11 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
               labelText: 'Plan name',
               border: OutlineInputBorder(),
             ),
+          ),
+          const SizedBox(height: 12),
+          ColorPickerRow(
+            selectedColor: _color,
+            onColorChanged: (c) => setState(() => _color = c),
           ),
           const SizedBox(height: 20),
 

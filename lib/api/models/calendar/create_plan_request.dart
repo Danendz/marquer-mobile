@@ -26,6 +26,7 @@ class CreatePlanRequest {
   final PlanSchedule schedule;
   final String startDate;
   final String? endDate;
+  final String? color;
   final List<CreatePlanTaskRequest> tasks;
 
   const CreatePlanRequest({
@@ -33,6 +34,7 @@ class CreatePlanRequest {
     required this.schedule,
     required this.startDate,
     this.endDate,
+    this.color,
     required this.tasks,
   });
 
@@ -41,6 +43,7 @@ class CreatePlanRequest {
     'schedule': schedule.toJson(),
     'start_date': startDate,
     if (endDate != null) 'end_date': endDate,
+    if (color != null) 'color': color,
     'tasks': tasks.map((t) => t.toJson()).toList(),
   };
 }

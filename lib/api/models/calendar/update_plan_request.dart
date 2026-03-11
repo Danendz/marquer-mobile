@@ -30,6 +30,7 @@ class UpdatePlanRequest {
   final String startDate;
   final String? endDate;
   final bool? isActive;
+  final String? color;
   final List<UpdatePlanTaskRequest> tasks;
 
   const UpdatePlanRequest({
@@ -38,6 +39,7 @@ class UpdatePlanRequest {
     required this.startDate,
     this.endDate,
     this.isActive,
+    this.color,
     required this.tasks,
   });
 
@@ -47,6 +49,7 @@ class UpdatePlanRequest {
     'start_date': startDate,
     if (endDate != null) 'end_date': endDate,
     if (isActive != null) 'is_active': isActive,
+    if (color != null) 'color': color,
     'tasks': tasks.map((t) => t.toJson()).toList(),
   };
 }

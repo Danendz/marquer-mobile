@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marquer/components/shared/color_picker_row.dart';
 import 'package:marquer/providers/calendar/calendar_day_events_provider.dart';
 import 'package:marquer/utils/format.dart';
 
@@ -9,7 +10,7 @@ class AddEventSheet extends ConsumerStatefulWidget {
   final String? initialDate;
   final List<DateTime>? weekDays;
   final String? initialName;
-  final void Function(String name, String? startTime, String? endTime, String date)? onSave;
+  final void Function(String name, String? startTime, String? endTime, String date, String? color)? onSave;
 
   const AddEventSheet({
     super.key,
@@ -30,6 +31,7 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
   DateTime? _selectedDate;
+  String? _color;
 
   static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
@@ -89,13 +91,14 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
     final endStr = _endTime != null ? formatTimeOfDay(_endTime!) : null;
 
     if (widget.onSave != null) {
-      widget.onSave!(name, startStr, endStr, _selectedDate != null ? formatDate(_selectedDate!) : '');
+      widget.onSave!(name, startStr, endStr, _selectedDate != null ? formatDate(_selectedDate!) : '', _color);
     } else {
       await ref.read(calendarDayEventsProvider.notifier).addEvent(
             name,
             startTime: startStr,
             endTime: endStr,
             date: widget.initialDate,
+            color: _color,
           );
     }
   }
@@ -147,6 +150,11 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
                   autofocus: true,
                   decoration: const InputDecoration(hintText: 'Event name'),
                   onSubmitted: (_) => _save(),
+                ),
+                const SizedBox(height: 12),
+                ColorPickerRow(
+                  selectedColor: _color,
+                  onColorChanged: (c) => setState(() => _color = c),
                 ),
                 const SizedBox(height: 12),
                 Row(
