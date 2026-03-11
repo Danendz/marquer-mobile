@@ -26,8 +26,22 @@ class CalendarDayEventsNotifier extends AsyncNotifier<List<Task>> {
 
   Future<void> addEvent(String name, {String? startTime, String? endTime, String? date, String? color}) async {
     final current = state.asData?.value;
-    if (current == null) return;
     final taskDate = date ?? formatDate(ref.read(calendarSelectedDateProvider));
+
+    if (current == null) {
+      // State not yet loaded — persist without optimistic update, then refresh
+      try {
+        await _service.createTask(
+          CreateTaskRequest(name: name, date: taskDate, startTime: startTime, endTime: endTime, color: color),
+        );
+        if (!ref.mounted) return;
+        ref.invalidateSelf();
+      } catch (e) {
+        debugPrint(e.toString());
+        ToastService.showError('Unable to add event! Try again later');
+      }
+      return;
+    }
 
     final optimistic = Task(
       id: -DateTime.now().millisecondsSinceEpoch,

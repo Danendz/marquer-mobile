@@ -62,8 +62,8 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
         _startTime = picked;
         if (_endTime == null ||
             _endTime!.hour * 60 + _endTime!.minute <= picked.hour * 60 + picked.minute) {
-          final endMinutes = picked.hour * 60 + picked.minute + 60;
-          _endTime = TimeOfDay(hour: (endMinutes ~/ 60) % 24, minute: endMinutes % 60);
+          final endMinutes = (picked.hour * 60 + picked.minute + 60).clamp(0, 23 * 60 + 59);
+          _endTime = TimeOfDay(hour: endMinutes ~/ 60, minute: endMinutes % 60);
         }
       });
     }
@@ -74,7 +74,12 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
       context: context,
       initialTime: _endTime ?? TimeOfDay.now(),
     );
-    if (picked != null) setState(() => _endTime = picked);
+    if (picked == null) return;
+    if (_startTime != null &&
+        picked.hour * 60 + picked.minute <= _startTime!.hour * 60 + _startTime!.minute) {
+      return;
+    }
+    setState(() => _endTime = picked);
   }
 
   void _clearTime() => setState(() {
@@ -90,14 +95,15 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
     final startStr = _startTime != null ? formatTimeOfDay(_startTime!) : null;
     final endStr = _endTime != null ? formatTimeOfDay(_endTime!) : null;
 
+    final dateStr = _selectedDate != null ? formatDate(_selectedDate!) : (widget.initialDate ?? '');
     if (widget.onSave != null) {
-      widget.onSave!(name, startStr, endStr, _selectedDate != null ? formatDate(_selectedDate!) : '', _color);
+      widget.onSave!(name, startStr, endStr, dateStr, _color);
     } else {
       await ref.read(calendarDayEventsProvider.notifier).addEvent(
             name,
             startTime: startStr,
             endTime: endStr,
-            date: widget.initialDate,
+            date: _selectedDate != null ? formatDate(_selectedDate!) : widget.initialDate,
             color: _color,
           );
     }

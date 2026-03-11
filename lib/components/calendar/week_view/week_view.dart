@@ -32,7 +32,8 @@ class _WeekViewState extends ConsumerState<WeekView> {
   late final PageController _pageController;
   late DateTime _baseMonday;
   static const int _kInitialPage = 1000;
-  double _scrollOffset =
+  final _scrollOffsets = <int, double>{};
+  double _defaultScrollOffset() =>
       ((DateTime.now().hour * kPixelsPerHour) - 80).clamp(0.0, double.infinity);
 
   @override
@@ -72,8 +73,8 @@ class _WeekViewState extends ConsumerState<WeekView> {
         final monday = _mondayForPage(page);
         return _WeekPage(
           monday: monday,
-          initialScrollOffset: _scrollOffset,
-          onScrollChanged: (offset) => _scrollOffset = offset,
+          initialScrollOffset: _scrollOffsets[page] ?? _defaultScrollOffset(),
+          onScrollChanged: (offset) => _scrollOffsets[page] = offset,
         );
       },
     );
@@ -278,8 +279,12 @@ class _WeekBody extends ConsumerWidget {
                             }),
                           ),
                         ),
-                        // Current time indicator
-                        CurrentTimeIndicator(colorScheme: colorScheme),
+                        // Current time indicator (only on the week that contains today)
+                        if (days.any((d) {
+                          final now = DateTime.now();
+                          return d.year == now.year && d.month == now.month && d.day == now.day;
+                        }))
+                          CurrentTimeIndicator(colorScheme: colorScheme),
                       ],
                     );
                   },
@@ -296,10 +301,12 @@ class _WeekBody extends ConsumerWidget {
     switch (event) {
       case TaskEvent e:
         _showTaskDetailSheet(context, ref, e.task);
+        return;
       case PlanTaskEvent _:
         return;
       case CountdownEvent e:
         context.push('/countdown/detail', extra: e.countdown);
+        return;
     }
   }
 
@@ -331,10 +338,12 @@ class _WeekBody extends ConsumerWidget {
         if (result == 'delete') {
           ref.read(weekDataProvider(mondayStr).notifier).deleteTask(e.task, e.task.date!);
         }
+        return;
       case PlanTaskEvent _:
         return;
       case CountdownEvent e:
         context.push('/countdown/detail', extra: e.countdown);
+        return;
     }
   }
 
@@ -363,10 +372,10 @@ class _WeekBody extends ConsumerWidget {
   }
 
   void _handleEmptyTap(int dayIndex, int minutes, WidgetRef ref, BuildContext context) {
-    final snapped = (minutes ~/ 15) * 15;
+    final snapped = ((minutes ~/ 15) * 15).clamp(0, 1439);
     final startTime = TimeOfDay(hour: snapped ~/ 60, minute: snapped % 60);
-    final endMinutes = snapped + 60;
-    final endTime = TimeOfDay(hour: (endMinutes ~/ 60) % 24, minute: endMinutes % 60);
+    final endMinutes = (snapped + 60).clamp(0, 1439);
+    final endTime = TimeOfDay(hour: endMinutes ~/ 60, minute: endMinutes % 60);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

@@ -73,6 +73,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
         _monthlyDates = [1];
         _monthlyWeekdayOccurrence = 1;
         _monthlyWeekdayDay = 0;
+        break;
       case WeeklySchedule(:final days):
         _scheduleType = ScheduleType.weekly;
         _weeklyDays = List.from(days);
@@ -80,6 +81,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
         _monthlyDates = [1];
         _monthlyWeekdayOccurrence = 1;
         _monthlyWeekdayDay = 0;
+        break;
       case IntervalSchedule(:final every):
         _scheduleType = ScheduleType.interval;
         _weeklyDays = [0];
@@ -87,6 +89,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
         _monthlyDates = [1];
         _monthlyWeekdayOccurrence = 1;
         _monthlyWeekdayDay = 0;
+        break;
       case MonthlyDatesSchedule(:final days):
         _scheduleType = ScheduleType.monthlyDates;
         _weeklyDays = [0];
@@ -94,6 +97,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
         _monthlyDates = List.from(days);
         _monthlyWeekdayOccurrence = 1;
         _monthlyWeekdayDay = 0;
+        break;
       case MonthlyWeekdaySchedule(:final week, :final weekday):
         _scheduleType = ScheduleType.monthlyWeekday;
         _weeklyDays = [0];
@@ -101,6 +105,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
         _monthlyDates = [1];
         _monthlyWeekdayOccurrence = week;
         _monthlyWeekdayDay = weekday;
+        break;
     }
   }
 
@@ -144,7 +149,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
 
@@ -163,6 +168,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
     final startDate = formatDate(_startDate);
     final endDate = _hasEndDate && _endDate != null ? formatDate(_endDate!) : null;
 
+    bool success;
     if (_isEditing) {
       final request = UpdatePlanRequest(
         name: name,
@@ -178,7 +184,7 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
           endTime: e.value.endTime,
         )).toList(),
       );
-      ref.read(plansProvider.notifier).edit(widget.plan!, request);
+      success = await ref.read(plansProvider.notifier).edit(widget.plan!, request);
     } else {
       final request = CreatePlanRequest(
         name: name,
@@ -193,10 +199,17 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
           endTime: e.value.endTime,
         )).toList(),
       );
-      ref.read(plansProvider.notifier).add(request);
+      success = await ref.read(plansProvider.notifier).add(request);
     }
 
-    Navigator.pop(context);
+    if (!mounted) return;
+    if (success) {
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to save plan. Please try again.')),
+      );
+    }
   }
 
   void _addEvent() {

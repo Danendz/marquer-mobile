@@ -20,39 +20,43 @@ class PlansNotifier extends AsyncNotifier<List<Plan>> {
     return _service.getPlans();
   }
 
-  Future<void> add(CreatePlanRequest request) async {
+  Future<bool> add(CreatePlanRequest request) async {
     final current = state.asData?.value;
-    if (current == null) return;
+    if (current == null) return false;
 
     try {
       final created = await _service.createPlan(request);
-      if (!ref.mounted) return;
+      if (!ref.mounted) return false;
       state = AsyncData([...current, created]);
       ref.invalidate(calendarOverviewProvider);
       ref.invalidate(dayPlansProvider);
+      return true;
     } catch (e) {
-      if (!ref.mounted) return;
+      if (!ref.mounted) return false;
       debugPrint(e.toString());
       ToastService.showError('Unable to create plan! Try again later');
+      return false;
     }
   }
 
-  Future<void> edit(Plan plan, UpdatePlanRequest request) async {
+  Future<bool> edit(Plan plan, UpdatePlanRequest request) async {
     final current = state.asData?.value;
-    if (current == null) return;
+    if (current == null) return false;
 
     try {
       final updated = await _service.updatePlan(plan.id.toString(), request);
-      if (!ref.mounted) return;
+      if (!ref.mounted) return false;
       state = AsyncData([
         for (final p in state.asData!.value) if (p.id == plan.id) updated else p,
       ]);
       ref.invalidate(calendarOverviewProvider);
       ref.invalidate(dayPlansProvider);
+      return true;
     } catch (e) {
-      if (!ref.mounted) return;
+      if (!ref.mounted) return false;
       debugPrint(e.toString());
       ToastService.showError('Unable to update plan! Try again later');
+      return false;
     }
   }
 

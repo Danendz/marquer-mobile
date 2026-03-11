@@ -36,6 +36,7 @@ class ColorPickerRow extends StatelessWidget {
             color: Colors.grey.shade300,
             isSelected: selectedColor == null,
             onTap: () => onColorChanged(null),
+            semanticLabel: 'default color',
             child: selectedColor == null
                 ? Icon(Icons.close, size: 14, color: Colors.grey.shade600)
                 : null,
@@ -46,6 +47,7 @@ class ColorPickerRow extends StatelessWidget {
               color: hexToColor(hex),
               isSelected: selectedColor == hex,
               onTap: () => onColorChanged(hex),
+              semanticLabel: 'preset color: $hex',
             ),
             const SizedBox(width: 8),
           ],
@@ -66,32 +68,44 @@ class _ColorCircle extends StatelessWidget {
   final Color color;
   final bool isSelected;
   final VoidCallback onTap;
+  final String semanticLabel;
   final Widget? child;
 
   const _ColorCircle({
     required this.color,
     required this.isSelected,
     required this.onTap,
+    required this.semanticLabel,
     this.child,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-          border: isSelected
-              ? Border.all(color: Theme.of(context).colorScheme.onSurface, width: 2)
-              : null,
+    return Semantics(
+      label: semanticLabel,
+      selected: isSelected,
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              border: isSelected
+                  ? Border.all(color: Theme.of(context).colorScheme.onSurface, width: 2)
+                  : null,
+            ),
+            child: isSelected && child == null
+                ? const Icon(Icons.check, size: 14, color: Colors.white)
+                : child,
+          ),
         ),
-        child: isSelected && child == null
-            ? const Icon(Icons.check, size: 14, color: Colors.white)
-            : child,
       ),
     );
   }
@@ -118,56 +132,66 @@ class _CustomColorCircle extends StatelessWidget {
     final isSelected = selectedColor != null;
     final displayColor = isSelected ? hexToColor(selectedColor!) : Colors.grey.shade400;
 
-    return GestureDetector(
-      onTap: () async {
-        final initial = isSelected ? hexToColor(selectedColor!) : Colors.blue;
-        Color picked = initial;
+    return Semantics(
+      label: isSelected ? 'custom color: ${selectedColor!}' : 'custom color',
+      selected: isSelected,
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: () async {
+            final initial = isSelected ? hexToColor(selectedColor!) : Colors.blue;
+            Color picked = initial;
 
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Pick a color'),
-            content: SizedBox(
-              width: 280,
-              child: StatefulBuilder(
-                builder: (ctx, setState) => Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(height: 48, color: picked),
-                    const SizedBox(height: 12),
-                    _HslColorPicker(
-                      initial: initial,
-                      onChanged: (c) => setState(() => picked = c),
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Pick a color'),
+                content: SizedBox(
+                  width: 280,
+                  child: StatefulBuilder(
+                    builder: (ctx, setState) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(height: 48, color: picked),
+                        const SizedBox(height: 12),
+                        _HslColorPicker(
+                          initial: initial,
+                          onChanged: (c) => setState(() => picked = c),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('OK')),
+                ],
+              ),
+            );
+
+            if (confirmed == true) {
+              onColorChanged(_colorToHex(picked));
+            }
+          },
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: displayColor,
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+                width: 1,
               ),
             ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-              TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('OK')),
-            ],
-          ),
-        );
-
-        if (confirmed == true) {
-          onColorChanged(_colorToHex(picked));
-        }
-      },
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: displayColor,
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
-            width: 1,
+            child: isSelected
+                ? const Icon(Icons.check, size: 14, color: Colors.white)
+                : Icon(Icons.palette_outlined, size: 14, color: Colors.grey.shade600),
           ),
         ),
-        child: isSelected
-            ? const Icon(Icons.check, size: 14, color: Colors.white)
-            : Icon(Icons.palette_outlined, size: 14, color: Colors.grey.shade600),
       ),
     );
   }

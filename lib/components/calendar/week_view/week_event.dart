@@ -9,20 +9,22 @@ sealed class WeekEvent {
   String get name;
   String? get startTime;
   String? get endTime;
-  bool get isAllDay => startTime == null || endTime == null;
+  bool get isAllDay => startTime == null && endTime == null;
   bool get isDone => false;
   Color get color;
 
   int get startMinutes {
     if (startTime == null) return 0;
     final parts = startTime!.split(':');
-    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+    if (parts.length != 2) return 0;
+    return (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
   }
 
   int get endMinutes {
     if (endTime == null) return startMinutes + 60;
     final parts = endTime!.split(':');
-    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+    if (parts.length != 2) return startMinutes + 60;
+    return (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
   }
 
   int get durationMinutes => (endMinutes - startMinutes).clamp(15, 24 * 60);

@@ -204,9 +204,13 @@ class _TaskItemCardState extends ConsumerState<TaskItemCard> {
                   children: [
                     Icon(Icons.folder_outlined, size: 12, color: colorScheme.onSurfaceVariant),
                     const SizedBox(width: 4),
-                    Text(
-                      category.name,
-                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                    Flexible(
+                      child: Text(
+                        category.name,
+                        style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
                     ),
                     const SizedBox(width: 6),
                     Container(

@@ -56,7 +56,7 @@ class DayColumn extends StatelessWidget {
             final maxEnd = planEvents
                 .map((e) => e.startMinutes + e.durationMinutes)
                 .reduce((a, b) => a > b ? a : b);
-            final top = (minStart * kPixelsPerMinute) - 12;
+            final top = ((minStart * kPixelsPerMinute) - 12).clamp(0.0, double.infinity);
             final bgHeight = (((maxEnd - minStart) * kPixelsPerMinute) + 12).clamp(18.0, double.infinity);
             final planName = planEvents.first.planName;
             final planColor = planEvents.first.planTask.planColor != null
