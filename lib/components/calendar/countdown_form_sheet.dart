@@ -37,11 +37,16 @@ class _CountdownFormSheetState extends State<CountdownFormSheet> {
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final firstDate = now.add(const Duration(days: 1));
+    final lastDate = DateTime(2100);
+    final initialDate = (_selectedDate != null && _selectedDate!.isAfter(firstDate))
+        ? _selectedDate!
+        : firstDate;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? now.add(const Duration(days: 1)),
-      firstDate: now.add(const Duration(days: 1)),
-      lastDate: DateTime(2100),
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
     );
     if (picked != null) setState(() => _selectedDate = picked);
   }

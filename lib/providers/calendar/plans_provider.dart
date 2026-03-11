@@ -65,6 +65,8 @@ class PlansNotifier extends AsyncNotifier<List<Plan>> {
     if (current == null) return;
 
     state = AsyncData([for (final p in current) if (p.id != plan.id) p]);
+    ref.invalidate(calendarOverviewProvider);
+    ref.invalidate(dayPlansProvider);
 
     try {
       await _service.deletePlan(plan.id.toString());
@@ -100,6 +102,8 @@ class PlansNotifier extends AsyncNotifier<List<Plan>> {
       state = AsyncData([
         for (final p in state.asData!.value) if (p.id == plan.id) updated else p,
       ]);
+      ref.invalidate(calendarOverviewProvider);
+      ref.invalidate(dayPlansProvider);
     } catch (e) {
       if (!ref.mounted) return;
       state = AsyncData([
