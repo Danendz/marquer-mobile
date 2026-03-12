@@ -23,6 +23,7 @@ class CountdownsNotifier extends AsyncNotifier<List<Countdown>> {
   Future<String> _randomBgImage() async {
     final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
     final assets = manifest.listAssets().where((k) => k.startsWith('assets/timer_bg/')).toList();
+    if (assets.isEmpty) return 'default.jpg';
     return assets[Random().nextInt(assets.length)].split('/').last;
   }
 

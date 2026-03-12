@@ -157,6 +157,7 @@ class _BgPickerSheet extends StatefulWidget {
 
 class _BgPickerSheetState extends State<_BgPickerSheet> {
   List<String> _images = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -165,14 +166,19 @@ class _BgPickerSheetState extends State<_BgPickerSheet> {
   }
 
   Future<void> _loadImages() async {
-    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    final assets = manifest
-        .listAssets()
-        .where((k) => k.startsWith('assets/timer_bg/'))
-        .map((k) => k.split('/').last)
-        .toList()
-      ..sort();
-    if (mounted) setState(() => _images = assets);
+    try {
+      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+      final assets = manifest
+          .listAssets()
+          .where((k) => k.startsWith('assets/timer_bg/'))
+          .map((k) => k.split('/').last)
+          .toList()
+        ..sort();
+      if (mounted) setState(() { _images = assets; _isLoading = false; });
+    } catch (e) {
+      debugPrint('Failed to load background images: $e');
+      if (mounted) setState(() { _images = []; _isLoading = false; });
+    }
   }
 
   @override
@@ -186,8 +192,10 @@ class _BgPickerSheetState extends State<_BgPickerSheet> {
           Text('Choose Background', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           Expanded(
-            child: _images.isEmpty
+            child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
+                : _images.isEmpty
+                ? const Center(child: Text('No images found'))
                 : GridView.builder(
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
