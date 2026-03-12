@@ -87,6 +87,7 @@ class TimerTaskHandler extends TaskHandler {
         await FlutterForegroundTask.saveData(key: 'bg_countdown_completed', value: true);
         await FlutterForegroundTask.saveData(key: 'bg_elapsed_snapshot_s', value: targetS);
         FlutterForegroundTask.sendDataToMain({'action': 'countdown_complete', 'elapsed': targetS});
+        FlutterForegroundTask.launchApp('/study/active');
         return;
       }
       text = 'Time remaining: ${_fmtTime(remaining)}';

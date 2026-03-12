@@ -1,8 +1,8 @@
 import 'dart:async' show Future, Timer, unawaited;
 import 'dart:math';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:marquer/services/timer_feedback_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/study/complete_study_session_request.dart';
 import 'package:marquer/api/models/study/study_session.dart';
@@ -210,6 +210,7 @@ class TimerNotifier extends Notifier<TimerState> {
             isRunning: false,
           );
         }
+        unawaited(TimerFeedbackService.playCompletionFeedback());
         break;
     }
   }
@@ -540,6 +541,7 @@ class TimerNotifier extends Notifier<TimerState> {
   void _resetTimerState() {
     _ticker?.cancel();
     WakelockPlus.disable();
+    unawaited(TimerFeedbackService.stop());
     unawaited(clearTimerBgState());
     unawaited(stopTimerForegroundService());
     _clearLocal();
@@ -653,7 +655,7 @@ class TimerNotifier extends Notifier<TimerState> {
         );
         _ticker?.cancel();
         WakelockPlus.disable();
-        HapticFeedback.heavyImpact();
+        unawaited(TimerFeedbackService.playCompletionFeedback());
         // Navigate to completion — handled by screen listening to state
         return;
       }
@@ -667,7 +669,7 @@ class TimerNotifier extends Notifier<TimerState> {
 
     if (newPhaseElapsed >= phaseTotal) {
       // Phase complete
-      HapticFeedback.heavyImpact();
+      unawaited(TimerFeedbackService.playVibrationOnly());
       _handlePomodoroPhaseComplete();
     } else {
       // Still in current phase
@@ -699,7 +701,7 @@ class TimerNotifier extends Notifier<TimerState> {
           );
           _ticker?.cancel();
           WakelockPlus.disable();
-          HapticFeedback.heavyImpact();
+          unawaited(TimerFeedbackService.playCompletionFeedback());
           return;
         }
         state = state.copyWith(elapsedSeconds: newElapsed);

@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/study/study_session.dart';
 import 'package:marquer/api/models/study/timer_mode.dart';
 import 'package:marquer/providers/study/timer_provider.dart';
+import 'package:marquer/services/timer_feedback_service.dart';
 
 class ActiveTimerScreen extends ConsumerStatefulWidget {
   final StudySession? session;
@@ -334,6 +336,7 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         final router = GoRouter.of(context);
+        unawaited(TimerFeedbackService.playCompletionFeedback());
         await showDialog<void>(
           context: context,
           barrierDismissible: false,
@@ -351,6 +354,7 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
                 ],
               ),
         );
+        unawaited(TimerFeedbackService.stop());
         if (!mounted) return;
         await notifier.complete();
         if (mounted) router.go('/');
