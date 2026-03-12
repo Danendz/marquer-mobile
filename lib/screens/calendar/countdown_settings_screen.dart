@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -6,14 +7,6 @@ import 'package:marquer/api/models/calendar/countdown.dart';
 import 'package:marquer/api/models/calendar/update_countdown_request.dart';
 import 'package:marquer/providers/calendar/countdowns_provider.dart';
 import 'package:marquer/utils/format.dart';
-
-const _bgImages = [
-  'IMG_1157.webp', 'IMG_1158.webp', 'IMG_1159.webp', 'IMG_1160.webp',
-  'IMG_1161.webp', 'IMG_1162.webp', 'IMG_1163.webp', 'IMG_1164.webp',
-  'IMG_1165.webp', 'IMG_1166.webp', 'IMG_1167.webp', 'IMG_1168.webp',
-  'IMG_1169.webp', 'IMG_1170.webp', 'IMG_1171.webp', 'IMG_1172.webp',
-  'IMG_1173.webp', 'IMG_1174.webp', 'IMG_1175.webp',
-];
 
 class CountdownSettingsScreen extends ConsumerStatefulWidget {
   final Countdown countdown;
@@ -152,64 +145,90 @@ class _CountdownSettingsScreenState extends ConsumerState<CountdownSettingsScree
   }
 }
 
-class _BgPickerSheet extends StatelessWidget {
+class _BgPickerSheet extends StatefulWidget {
   final String selected;
   final void Function(String) onSelect;
 
   const _BgPickerSheet({required this.selected, required this.onSelect});
 
   @override
+  State<_BgPickerSheet> createState() => _BgPickerSheetState();
+}
+
+class _BgPickerSheetState extends State<_BgPickerSheet> {
+  List<String> _images = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImages();
+  }
+
+  Future<void> _loadImages() async {
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    final assets = manifest
+        .listAssets()
+        .where((k) => k.startsWith('assets/timer_bg/'))
+        .map((k) => k.split('/').last)
+        .toList()
+      ..sort();
+    if (mounted) setState(() => _images = assets);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      height: 400,
+      height: MediaQuery.of(context).size.height * 0.5,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Choose Background', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           Expanded(
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
-              itemCount: _bgImages.length,
-              itemBuilder: (context, index) {
-                final img = _bgImages[index];
-                final isSelected = img == selected;
-                return GestureDetector(
-                  onTap: () => onSelect(img),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.asset(
-                          'assets/timer_bg/$img',
-                          fit: BoxFit.cover,
-                        ),
-                        if (isSelected)
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Theme.of(context).colorScheme.primary,
-                                width: 3,
-                              ),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(
-                              Icons.check_circle,
-                              color: Colors.white,
-                            ),
-                          ),
-                      ],
+            child: _images.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : GridView.builder(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
                     ),
+                    itemCount: _images.length,
+                    itemBuilder: (context, index) {
+                      final img = _images[index];
+                      final isSelected = img == widget.selected;
+                      return GestureDetector(
+                        onTap: () => widget.onSelect(img),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.asset(
+                                'assets/timer_bg/$img',
+                                fit: BoxFit.cover,
+                              ),
+                              if (isSelected)
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      width: 3,
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),

@@ -110,6 +110,10 @@ class _TasksPageState extends ConsumerState<TasksPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => context.go('/'),
+                ),
                 GestureDetector(
                   onTap: () => showTaskFilterDropdown(context),
                   child: Row(

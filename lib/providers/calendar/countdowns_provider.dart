@@ -1,4 +1,6 @@
+import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/calendar/countdown.dart';
 import 'package:marquer/api/models/calendar/create_countdown_request.dart';
@@ -18,13 +20,19 @@ class CountdownsNotifier extends AsyncNotifier<List<Countdown>> {
     return _service.getCountdowns();
   }
 
+  Future<String> _randomBgImage() async {
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    final assets = manifest.listAssets().where((k) => k.startsWith('assets/timer_bg/')).toList();
+    return assets[Random().nextInt(assets.length)].split('/').last;
+  }
+
   Future<void> add(String name, String targetDate) async {
     final current = state.asData?.value;
     if (current == null) return;
 
     try {
       final created = await _service.createCountdown(
-        CreateCountdownRequest(name: name, targetDate: targetDate),
+        CreateCountdownRequest(name: name, targetDate: targetDate, bgImage: await _randomBgImage()),
       );
       if (!ref.mounted) return;
       state = AsyncData([...current, created]);
