@@ -86,7 +86,7 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
     }
   }
 
-  Widget _buildModeConfig(ColorScheme colorScheme, OutlineInputBorder inputBorder) {
+  Widget _buildModeConfig(ColorScheme colorScheme) {
     switch (_mode) {
       case TimerMode.countDown:
         return CountdownConfigSection(
@@ -305,7 +305,7 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
                       child: child,
                     ),
                   ),
-                  child: _buildModeConfig(colorScheme, inputBorder),
+                  child: _buildModeConfig(colorScheme),
                 ),
               ),
 
