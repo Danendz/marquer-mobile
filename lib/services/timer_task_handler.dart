@@ -1,3 +1,7 @@
+// Background-isolate timer handler.
+// This file runs in both the main isolate and the background foreground-service
+// isolate — keep it free of any flutter-only APIs that are not available in
+// background isolates (e.g. no Navigator, no BuildContext).
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 // Top-level so it's accessible from both main and background isolates.
