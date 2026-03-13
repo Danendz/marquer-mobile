@@ -17,6 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 // Re-export so existing imports of timer_provider.dart continue to work.
+// TODO: Remove once all importers reference timer_state.dart directly.
 export 'package:marquer/providers/study/timer_state.dart';
 
 final timerProvider = NotifierProvider<TimerNotifier, TimerState>(
