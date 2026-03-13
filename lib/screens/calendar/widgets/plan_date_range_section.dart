@@ -36,11 +36,17 @@ class PlanDateRangeSection extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Switch(
-              value: hasEndDate,
-              onChanged: onEndDateToggle,
+            MergeSemantics(
+              child: Row(
+                children: [
+                  Switch(
+                    value: hasEndDate,
+                    onChanged: onEndDateToggle,
+                  ),
+                  const Text('End'),
+                ],
+              ),
             ),
-            const Text('End'),
           ],
         ),
         if (hasEndDate) ...[

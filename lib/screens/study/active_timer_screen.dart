@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/study/study_session.dart';
 import 'package:marquer/api/models/study/timer_mode.dart';
 import 'package:marquer/providers/study/timer_provider.dart';
+import 'package:marquer/providers/study/timer_state.dart';
 import 'package:marquer/screens/study/widgets/timer_glass_button.dart';
 import 'package:marquer/screens/study/widgets/timer_phase_indicator.dart';
 import 'package:marquer/screens/study/widgets/timer_progress_ring.dart';

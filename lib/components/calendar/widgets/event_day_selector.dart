@@ -14,7 +14,7 @@ class EventDaySelector extends StatelessWidget {
     required this.colorScheme,
     required this.dayLabels,
     required this.onSelect,
-  });
+  }) : assert(days.length == dayLabels.length, 'days and dayLabels must have the same length');
 
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;

@@ -16,7 +16,9 @@ class SessionNumField extends StatelessWidget {
     this.onChanged, {
     super.key,
     this.unit,
-  });
+  })  : assert(min <= max, 'min must be <= max'),
+        assert(value >= min, 'value must be >= min'),
+        assert(value <= max, 'value must be <= max');
 
   @override
   Widget build(BuildContext context) {

@@ -24,6 +24,19 @@ class _HslColorPickerState extends State<HslColorPicker> {
     _light = hsl.lightness;
   }
 
+  @override
+  void didUpdateWidget(HslColorPicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initial != oldWidget.initial) {
+      final hsl = HSLColor.fromColor(widget.initial);
+      setState(() {
+        _hue = hsl.hue;
+        _sat = hsl.saturation;
+        _light = hsl.lightness;
+      });
+    }
+  }
+
   Color get _current => HSLColor.fromAHSL(1, _hue, _sat, _light).toColor();
 
   void _notify() => widget.onChanged(_current);

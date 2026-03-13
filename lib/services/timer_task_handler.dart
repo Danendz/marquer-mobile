@@ -2,6 +2,7 @@
 // This file runs in both the main isolate and the background foreground-service
 // isolate — keep it free of any flutter-only APIs that are not available in
 // background isolates (e.g. no Navigator, no BuildContext).
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 // Top-level so it's accessible from both main and background isolates.
@@ -15,14 +16,18 @@ String fmtTimerTime(int seconds) {
   return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
 }
 
+const kBtnPauseId = 'btn_pause';
+const kBtnResumeId = 'btn_resume';
+const kBtnStopId = 'btn_stop';
+
 const kTimerRunningButtons = [
-  NotificationButton(id: 'btn_pause', text: 'Pause'),
-  NotificationButton(id: 'btn_stop', text: 'Stop'),
+  NotificationButton(id: kBtnPauseId, text: 'Pause'),
+  NotificationButton(id: kBtnStopId, text: 'Stop'),
 ];
 
 const kTimerPausedButtons = [
-  NotificationButton(id: 'btn_resume', text: 'Resume'),
-  NotificationButton(id: 'btn_stop', text: 'Stop'),
+  NotificationButton(id: kBtnResumeId, text: 'Resume'),
+  NotificationButton(id: kBtnStopId, text: 'Stop'),
 ];
 
 @pragma('vm:entry-point')
@@ -36,6 +41,7 @@ class TimerTaskHandler extends TaskHandler {
 
   @override
   void onRepeatEvent(DateTime timestamp) async {
+    try {
     final paused =
         await FlutterForegroundTask.getData<bool>(key: 'bg_paused') ?? true;
     if (paused) return;
@@ -109,11 +115,14 @@ class TimerTaskHandler extends TaskHandler {
       text = 'Studying: ${fmtTimerTime(elapsed)}';
     }
 
-    FlutterForegroundTask.updateService(
+    await FlutterForegroundTask.updateService(
       notificationTitle: 'Study Timer',
       notificationText: text,
       notificationButtons: kTimerRunningButtons,
     );
+    } catch (e) {
+      debugPrint('TimerTaskHandler.onRepeatEvent error: $e');
+    }
   }
 
   @override
@@ -121,11 +130,14 @@ class TimerTaskHandler extends TaskHandler {
 
   @override
   void onNotificationButtonPressed(String id) {
-    _handleButtonPress(id);
+    _handleButtonPress(id).catchError((e) {
+      debugPrint('TimerTaskHandler._handleButtonPress error: $e');
+    });
   }
 
   Future<void> _handleButtonPress(String id) async {
-    if (id == 'btn_pause') {
+    try {
+    if (id == kBtnPauseId) {
       final nowMs = DateTime.now().millisecondsSinceEpoch;
       final mode =
           await FlutterForegroundTask.getData<String>(key: 'bg_mode') ??
@@ -179,7 +191,7 @@ class TimerTaskHandler extends TaskHandler {
         notificationButtons: kTimerPausedButtons,
       );
       FlutterForegroundTask.sendDataToMain({'action': 'pause', 'elapsed': elapsed});
-    } else if (id == 'btn_resume') {
+    } else if (id == kBtnResumeId) {
       final snapshot =
           await FlutterForegroundTask.getData<int>(
             key: 'bg_elapsed_snapshot_s',
@@ -208,7 +220,7 @@ class TimerTaskHandler extends TaskHandler {
         notificationButtons: kTimerRunningButtons,
       );
       FlutterForegroundTask.sendDataToMain({'action': 'resume', 'elapsed': snapshot});
-    } else if (id == 'btn_stop') {
+    } else if (id == kBtnStopId) {
       final nowMs = DateTime.now().millisecondsSinceEpoch;
       final alreadyPaused =
           await FlutterForegroundTask.getData<bool>(key: 'bg_paused') ?? false;
@@ -257,6 +269,9 @@ class TimerTaskHandler extends TaskHandler {
       );
       FlutterForegroundTask.sendDataToMain({'action': 'stop', 'elapsed': elapsed});
       FlutterForegroundTask.launchApp('/study/active');
+    }
+    } catch (e) {
+      debugPrint('TimerTaskHandler._handleButtonPress error: $e');
     }
   }
 

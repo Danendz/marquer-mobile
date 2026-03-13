@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:marquer/providers/study/timer_provider.dart';
+import 'package:marquer/providers/study/timer_state.dart';
 
 class TimerPhaseIndicator extends StatelessWidget {
   final TimerState s;

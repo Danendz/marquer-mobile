@@ -35,7 +35,7 @@ class _WeekPageState extends ConsumerState<WeekPage> {
     // Stale-while-revalidate: show cached data immediately, refresh in background
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final mondayStr = formatDate(widget.monday);
-      ref.read(weekDataProvider(mondayStr).notifier).silentRefresh();
+      ref.read(weekDataProvider(mondayStr).notifier).safeRefresh();
     });
   }
 

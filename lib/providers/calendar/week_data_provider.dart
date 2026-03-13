@@ -24,6 +24,9 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
   final _service = CalendarService();
   final _tasksService = TasksService();
 
+  int _pendingMutations = 0;
+  bool get hasPendingMutations => _pendingMutations > 0;
+
   @override
   Future<WeekData> build() async {
     final link = ref.keepAlive();
@@ -39,6 +42,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
     final current = state.asData?.value;
     if (current == null) return;
 
+    _pendingMutations++;
     // Optimistic toggle
     state = AsyncData(_toggleInData(current, planTaskId, planId, date, null));
 
@@ -51,6 +55,8 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
       state = AsyncData(_toggleInData(state.asData?.value ?? current, planTaskId, planId, date, null));
       debugPrint(e.toString());
       ToastService.showError('Unable to update plan task! Try again later');
+    } finally {
+      _pendingMutations--;
     }
   }
 
@@ -58,6 +64,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
     final current = state.asData?.value;
     if (current == null) return;
 
+    _pendingMutations++;
     final newStatus = task.status == TaskStatus.done ? TaskStatus.draft : TaskStatus.done;
     state = AsyncData(_updateTaskInData(current, date, task.id, task.copyWith(status: newStatus)));
 
@@ -73,6 +80,8 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
       state = AsyncData(_updateTaskInData(state.asData?.value ?? current, date, task.id, task));
       debugPrint(e.toString());
       ToastService.showError('Unable to update event! Try again later');
+    } finally {
+      _pendingMutations--;
     }
   }
 
@@ -80,6 +89,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
     final current = state.asData?.value;
     if (current == null) return;
 
+    _pendingMutations++;
     state = AsyncData(_updateTaskInData(current, date, task.id, null));
 
     try {
@@ -94,6 +104,8 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
       state = AsyncData(latest.copyWith(tasks: updatedTasks));
       debugPrint(e.toString());
       ToastService.showError('Unable to delete event! Try again later');
+    } finally {
+      _pendingMutations--;
     }
   }
 
@@ -101,6 +113,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
     final current = state.asData?.value;
     if (current == null) return;
 
+    _pendingMutations++;
     state = AsyncData(_updateTaskInData(current, date, task.id, optimistic));
 
     try {
@@ -112,6 +125,8 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
       state = AsyncData(_updateTaskInData(state.asData?.value ?? current, date, task.id, task));
       debugPrint(e.toString());
       ToastService.showError('Unable to update event! Try again later');
+    } finally {
+      _pendingMutations--;
     }
   }
 
@@ -119,6 +134,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
     final current = state.asData?.value;
     if (current == null) return;
 
+    _pendingMutations++;
     final placeholder = Task(
       id: -DateTime.now().millisecondsSinceEpoch,
       name: name,
@@ -146,7 +162,16 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
       state = AsyncData(_updateTaskInData(state.asData?.value ?? current, date, placeholder.id, null));
       debugPrint(e.toString());
       ToastService.showError('Unable to add event! Try again later');
+    } finally {
+      _pendingMutations--;
     }
+  }
+
+  /// Refetch from server without showing loading state (stale-while-revalidate).
+  /// No-ops while optimistic mutations are in flight to avoid overwriting local state.
+  Future<void> safeRefresh() async {
+    if (hasPendingMutations) return;
+    return silentRefresh();
   }
 
   /// Refetch from server without showing loading state (stale-while-revalidate).

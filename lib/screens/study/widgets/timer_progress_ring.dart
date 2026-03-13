@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:marquer/api/models/study/timer_mode.dart';
-import 'package:marquer/providers/study/timer_provider.dart';
+import 'package:marquer/providers/study/timer_state.dart';
 import 'package:marquer/screens/study/widgets/ring_painter.dart';
 
 class TimerProgressRing extends StatelessWidget {

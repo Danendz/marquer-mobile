@@ -49,19 +49,17 @@ class _FilterFolderTileState extends ConsumerState<FilterFolderTile> {
                   const Icon(Icons.folder_outlined),
                   const SizedBox(width: 12),
                   Expanded(child: Text(folder.name)),
-                  GestureDetector(
-                    onTap: () {
+                  IconButton(
+                    tooltip: 'Select folder',
+                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                    onPressed: () {
                       ref.read(taskFilterProvider.notifier).set(
                         FolderFilter(folderId: folder.id, folderName: folder.name),
                       );
                       Navigator.pop(context);
                       context.go('/tasks');
                     },
-                    behavior: HitTestBehavior.opaque,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Icon(Icons.arrow_forward_ios, size: 14),
-                    ),
+                    icon: const Icon(Icons.arrow_forward_ios, size: 14),
                   ),
                   const SizedBox(width: 4),
                   AnimatedRotation(

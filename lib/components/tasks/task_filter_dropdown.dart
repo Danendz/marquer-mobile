@@ -129,6 +129,7 @@ class _TaskFilterSheet extends ConsumerWidget {
                     for (int i = 0; i < sortedFolders.length; i++) ...[
                       if (i > 0) const SizedBox(height: 8),
                       FilterFolderTile(
+                        key: ValueKey(sortedFolders[i].id),
                         folder: sortedFolders[i],
                         initiallyExpanded: sortedFolders[i].id == priorityFolderId,
                       ),

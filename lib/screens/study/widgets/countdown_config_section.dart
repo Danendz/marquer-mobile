@@ -66,13 +66,13 @@ class CountdownConfigSection extends StatelessWidget {
               onChanged: (v) {
                 final parsed = int.tryParse(v) ?? 1;
                 final clamped = parsed.clamp(1, 600);
-                onCustomChanged(clamped);
                 if (clamped != parsed) {
                   countDownCtrl.text = clamped.toString();
                   countDownCtrl.selection = TextSelection.fromPosition(
                     TextPosition(offset: countDownCtrl.text.length),
                   );
                 }
+                onCustomChanged(clamped);
               },
               decoration: InputDecoration(
                 labelText: 'Duration',
