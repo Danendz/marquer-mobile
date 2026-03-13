@@ -6,6 +6,7 @@
 - Never push changes without explicit user confirmation first.
 - Never create a PR without explicit user confirmation first.
 - Always show what will be committed/pushed and ask before proceeding.
+- Never push directly to main — all changes must go through a branch and PR.
 
 ## PR Title Convention
 
