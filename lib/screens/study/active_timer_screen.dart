@@ -9,6 +9,10 @@ import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/study/study_session.dart';
 import 'package:marquer/api/models/study/timer_mode.dart';
 import 'package:marquer/providers/study/timer_provider.dart';
+import 'package:marquer/providers/study/timer_state.dart';
+import 'package:marquer/screens/study/widgets/timer_glass_button.dart';
+import 'package:marquer/screens/study/widgets/timer_phase_indicator.dart';
+import 'package:marquer/screens/study/widgets/timer_progress_ring.dart';
 import 'package:marquer/services/timer_feedback_service.dart';
 
 class ActiveTimerScreen extends ConsumerStatefulWidget {
@@ -176,110 +180,6 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
     }
   }
 
-  Widget _buildGlassButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    Color iconColor = Colors.white,
-    Color labelColor = Colors.white,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 90,
-        height: 90,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.15),
-            width: 1,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 28, color: iconColor),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: labelColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                shadows: [
-                  Shadow(
-                    color: Colors.black.withValues(alpha: 0.6),
-                    blurRadius: 6,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProgressRing(TimerState s) {
-    final timeText = s.mode == TimerMode.countUp
-        ? _formatTime(s.elapsedSeconds)
-        : _formatTime(s.remainingSeconds);
-
-    return AnimatedBuilder(
-      animation: Listenable.merge([_breathAnim, _progressCurve]),
-      builder: (context, _) {
-        final scale = s.isRunning ? _breathAnim.value : 1.0;
-        final progress =
-            (_progressStart +
-                (_progressEnd - _progressStart) * _progressCurve.value)
-            .clamp(0.0, 1.0);
-        return Transform.scale(
-          scale: scale,
-          child: SizedBox(
-            width: 220,
-            height: 220,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox.expand(
-                  child: CustomPaint(
-                    painter: _RingPainter(
-                      progress: progress,
-                      showRing: s.mode != TimerMode.countUp,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      timeText,
-                      style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontFeatures: [const FontFeature.tabularFigures()],
-                        shadows: [
-                          Shadow(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(timerProvider);
@@ -377,188 +277,131 @@ class _ActiveTimerScreenState extends ConsumerState<ActiveTimerScreen>
       });
     }
 
+    final timeText = s.mode == TimerMode.countUp
+        ? _formatTime(s.elapsedSeconds)
+        : _formatTime(s.remainingSeconds);
+
     return WithForegroundTask(
       child: PopScope(
-      canPop: false,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Background image
-          if (_bgAsset != null)
-            Image.asset(_bgAsset!, fit: BoxFit.cover)
-          else
+        canPop: false,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background image
+            if (_bgAsset != null)
+              Image.asset(_bgAsset!, fit: BoxFit.cover)
+            else
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: RadialGradient(
+                    colors: [Color(0xFF2e2e50), Color(0xFF181828)],
+                    radius: 1.2,
+                  ),
+                ),
+              ),
+            // Overlay
             Container(
               decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [Color(0xFF2e2e50), Color(0xFF181828)],
-                  radius: 1.2,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x55000000), // ~33% black at top
+                    Color(0x88000000), // ~53% black at bottom
+                  ],
                 ),
               ),
             ),
-          // Overlay
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0x55000000), // ~33% black at top
-                  Color(0x88000000), // ~53% black at bottom
-                ],
-              ),
-            ),
-          ),
-          // Main scaffold
-          Scaffold(
-            backgroundColor: Colors.transparent,
-            extendBodyBehindAppBar: true,
-            appBar: AppBar(
+            // Main scaffold
+            Scaffold(
               backgroundColor: Colors.transparent,
-              elevation: 0,
-              iconTheme: const IconThemeData(color: Colors.white),
-              leading: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => _confirmEnd(context, notifier),
+              extendBodyBehindAppBar: true,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                iconTheme: const IconThemeData(color: Colors.white),
+                leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => _confirmEnd(context, notifier),
+                ),
+                title: Text(
+                  s.serverSession?.name ?? 'Study Session',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
-              title: Text(
-                s.serverSession?.name ?? 'Study Session',
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-            body: SafeArea(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Pomodoro phase info
-                  if (s.mode == TimerMode.pomodoro) ...[
-                    Text(
-                      _phaseLabel(s),
-                      style: Theme.of(
-                        context,
-                      ).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            blurRadius: 4,
+              body: SafeArea(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Pomodoro phase info
+                    if (s.mode == TimerMode.pomodoro)
+                      TimerPhaseIndicator(s: s, phaseLabel: _phaseLabel(s)),
+                    // Progress ring / timer
+                    TimerProgressRing(
+                      s: s,
+                      breathAnim: _breathAnim,
+                      progressCurve: _progressCurve,
+                      progressStart: _progressStart,
+                      progressEnd: _progressEnd,
+                      timeText: timeText,
+                    ),
+                    const SizedBox(height: 24),
+                    // Subject chip
+                    if (s.serverSession?.subject != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.2),
                           ),
-                        ],
+                        ),
+                        child: Text(
+                          s.serverSession!.subject!.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
+                    const SizedBox(height: 48),
+                    // Buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (s.isRunning)
+                          TimerGlassButton(
+                            icon: Icons.pause,
+                            label: 'Pause',
+                            onTap: () => notifier.pause(),
+                          )
+                        else
+                          TimerGlassButton(
+                            icon: Icons.play_arrow,
+                            label: 'Resume',
+                            onTap: () => notifier.resume(),
+                          ),
+                        const SizedBox(width: 24),
+                        TimerGlassButton(
+                          icon: Icons.stop,
+                          label: 'End Session',
+                          onTap: () => _confirmEnd(context, notifier),
+                          iconColor: Colors.redAccent,
+                          labelColor: Colors.redAccent,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Cycle ${s.completedCycles}/${s.totalCycles}',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white70,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
                   ],
-                  // Progress ring / timer
-                  _buildProgressRing(s),
-                  const SizedBox(height: 24),
-                  // Subject chip
-                  if (s.serverSession?.subject != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Text(
-                        s.serverSession!.subject!.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 48),
-                  // Buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (s.isRunning)
-                        _buildGlassButton(
-                          icon: Icons.pause,
-                          label: 'Pause',
-                          onTap: () => notifier.pause(),
-                        )
-                      else
-                        _buildGlassButton(
-                          icon: Icons.play_arrow,
-                          label: 'Resume',
-                          onTap: () => notifier.resume(),
-                        ),
-                      const SizedBox(width: 24),
-                      _buildGlassButton(
-                        icon: Icons.stop,
-                        label: 'End Session',
-                        onTap: () => _confirmEnd(context, notifier),
-                        iconColor: Colors.redAccent,
-                        labelColor: Colors.redAccent,
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
-}
-
-class _RingPainter extends CustomPainter {
-  final double progress;
-  final bool showRing;
-
-  _RingPainter({required this.progress, required this.showRing});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (!showRing) return;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 8;
-    const strokeWidth = 8.0;
-
-    // Background ring
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = Colors.white.withValues(alpha: 0.15)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth,
-    );
-
-    // Progress arc
-    if (progress > 0) {
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        -math.pi / 2,
-        2 * math.pi * progress,
-        false,
-        Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = strokeWidth
-          ..strokeCap = StrokeCap.round,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_RingPainter old) =>
-      old.progress != progress || old.showRing != showRing;
 }

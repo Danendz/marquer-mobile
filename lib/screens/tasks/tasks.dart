@@ -8,8 +8,10 @@ import 'package:marquer/providers/tasks/task_filter.dart';
 import 'package:marquer/providers/tasks/task_filter_provider.dart';
 import 'package:marquer/providers/tasks/task_folders_provider.dart';
 import 'package:marquer/providers/tasks/tasks_provider.dart';
+import 'package:marquer/screens/tasks/widgets/completed_tasks_section.dart';
+import 'package:marquer/screens/tasks/widgets/task_add_input.dart';
+import 'package:marquer/screens/tasks/widgets/tasks_empty_state.dart';
 import 'package:marquer/utils/action_sheet.dart';
-import 'package:marquer/utils/colors.dart';
 
 class TasksPage extends ConsumerStatefulWidget {
   const TasksPage({super.key});
@@ -96,7 +98,6 @@ class _TasksPageState extends ConsumerState<TasksPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = getColors(context);
     final filter = ref.watch(taskFilterProvider);
     final tasksAsync = ref.watch(tasksProvider);
     ref.watch(taskFoldersProvider); // preload for category picker
@@ -173,25 +174,10 @@ class _TasksPageState extends ConsumerState<TasksPage> {
                     onRefresh: () => ref.refresh(tasksProvider.future),
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        SizedBox(
-                          height: 400,
-                          child: Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.check_circle_outline, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No tasks yet',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: colors.onSurface.withValues(alpha: 0.5),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                      children: const [
+                        TasksEmptyState(
+                          icon: Icons.check_circle_outline,
+                          message: 'No tasks yet',
                         ),
                       ],
                     ),
@@ -203,25 +189,10 @@ class _TasksPageState extends ConsumerState<TasksPage> {
                     onRefresh: () => ref.refresh(tasksProvider.future),
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        SizedBox(
-                          height: 400,
-                          child: Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.delete_outline, size: 64, color: colors.onSurface.withValues(alpha: 0.3)),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No deleted tasks',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: colors.onSurface.withValues(alpha: 0.5),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                      children: const [
+                        TasksEmptyState(
+                          icon: Icons.delete_outline,
+                          message: 'No deleted tasks',
                         ),
                       ],
                     ),
@@ -238,84 +209,30 @@ class _TasksPageState extends ConsumerState<TasksPage> {
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                      if (_isAdding)
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: colors.surfaceContainer,
-                            borderRadius: BorderRadius.circular(16),
+                        if (_isAdding)
+                          TaskAddInput(
+                            controller: _addController,
+                            focusNode: _addFocusNode,
+                            onSubmit: _submitTask,
                           ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: colors.primary, width: 2),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextField(
-                                  controller: _addController,
-                                  focusNode: _addFocusNode,
-                                  decoration: const InputDecoration(
-                                    hintText: 'New task...',
-                                    border: InputBorder.none,
-                                  ),
-                                  onSubmitted: (_) => _submitTask(),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      if (isDeletedView)
-                        ...tasks.map((task) => TaskItemCard(
-                          key: ValueKey(task.id),
-                          task: task,
-                        )),
-                      if (!isDeletedView) ...[
-                        ...activeTasks.map((task) => TaskItemCard(
-                          key: ValueKey(task.id),
-                          task: task,
-                        )),
-                        if (showCompleted) ...[
-                          GestureDetector(
-                            onTap: () => setState(() => _completedExpanded = !_completedExpanded),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    _completedExpanded
-                                        ? Icons.expand_less
-                                        : Icons.expand_more,
-                                    size: 20,
-                                    color: colors.onSurface.withValues(alpha: 0.6),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Completed (${completedTasks.length})',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      color: colors.onSurface.withValues(alpha: 0.6),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                        if (isDeletedView)
+                          ...tasks.map((task) => TaskItemCard(
+                                key: ValueKey(task.id),
+                                task: task,
+                              )),
+                        if (!isDeletedView) ...[
+                          ...activeTasks.map((task) => TaskItemCard(
+                                key: ValueKey(task.id),
+                                task: task,
+                              )),
+                          if (showCompleted)
+                            CompletedTasksSection(
+                              tasks: completedTasks,
+                              expanded: _completedExpanded,
+                              onToggle: () => setState(() => _completedExpanded = !_completedExpanded),
                             ),
-                          ),
-                          if (_completedExpanded)
-                            ...completedTasks.map((task) => TaskItemCard(
-                              key: ValueKey(task.id),
-                              task: task,
-                            )),
                         ],
                       ],
-                    ],
                     ),
                   ),
                 );

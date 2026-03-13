@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:marquer/api/models/calendar/create_plan_request.dart';
 import 'package:marquer/api/models/calendar/plan.dart';
 import 'package:marquer/api/models/calendar/plan_schedule.dart';
@@ -8,6 +7,7 @@ import 'package:marquer/api/models/calendar/update_plan_request.dart';
 import 'package:marquer/components/calendar/add_event_sheet.dart';
 import 'package:marquer/components/shared/color_picker_row.dart';
 import 'package:marquer/providers/calendar/plans_provider.dart';
+import 'package:marquer/screens/calendar/widgets/plan_date_range_section.dart';
 import 'package:marquer/screens/calendar/widgets/plan_event_list.dart';
 import 'package:marquer/screens/calendar/widgets/schedule_config.dart';
 import 'package:marquer/utils/format.dart';
@@ -300,38 +300,17 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
           const SizedBox(height: 20),
 
           // Dates
-          Text('Date range', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _pickDate(isStart: true),
-                  icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                  label: Text(DateFormat('MMM d, yyyy').format(_startDate)),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Switch(
-                value: _hasEndDate,
-                onChanged: (v) => setState(() {
-                  _hasEndDate = v;
-                  if (!v) _endDate = null;
-                }),
-              ),
-              const Text('End'),
-            ],
+          PlanDateRangeSection(
+            startDate: _startDate,
+            hasEndDate: _hasEndDate,
+            endDate: _endDate,
+            onPickStart: () => _pickDate(isStart: true),
+            onPickEnd: () => _pickDate(isStart: false),
+            onEndDateToggle: (v) => setState(() {
+              _hasEndDate = v;
+              if (!v) _endDate = null;
+            }),
           ),
-          if (_hasEndDate) ...[
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: () => _pickDate(isStart: false),
-              icon: const Icon(Icons.calendar_today_outlined, size: 16),
-              label: Text(
-                _endDate != null ? DateFormat('MMM d, yyyy').format(_endDate!) : 'Pick end date',
-              ),
-            ),
-          ],
           const SizedBox(height: 20),
 
           // Events

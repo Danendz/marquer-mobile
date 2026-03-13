@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:marquer/components/shared/hsl_color_picker.dart';
 import 'package:marquer/utils/colors.dart';
 
 const _presetColors = [
@@ -156,7 +157,7 @@ class _CustomColorCircle extends StatelessWidget {
                       children: [
                         Container(height: 48, color: picked),
                         const SizedBox(height: 12),
-                        _HslColorPicker(
+                        HslColorPicker(
                           initial: initial,
                           onChanged: (c) => setState(() => picked = c),
                         ),
@@ -193,72 +194,6 @@ class _CustomColorCircle extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _HslColorPicker extends StatefulWidget {
-  final Color initial;
-  final ValueChanged<Color> onChanged;
-
-  const _HslColorPicker({required this.initial, required this.onChanged});
-
-  @override
-  State<_HslColorPicker> createState() => _HslColorPickerState();
-}
-
-class _HslColorPickerState extends State<_HslColorPicker> {
-  late double _hue;
-  late double _sat;
-  late double _light;
-
-  @override
-  void initState() {
-    super.initState();
-    final hsl = HSLColor.fromColor(widget.initial);
-    _hue = hsl.hue;
-    _sat = hsl.saturation;
-    _light = hsl.lightness;
-  }
-
-  Color get _current => HSLColor.fromAHSL(1, _hue, _sat, _light).toColor();
-
-  void _notify() => widget.onChanged(_current);
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _SliderRow(label: 'H', value: _hue, min: 0, max: 360, onChanged: (v) { setState(() => _hue = v); _notify(); }),
-        _SliderRow(label: 'S', value: _sat, min: 0, max: 1, onChanged: (v) { setState(() => _sat = v); _notify(); }),
-        _SliderRow(label: 'L', value: _light, min: 0, max: 1, onChanged: (v) { setState(() => _light = v); _notify(); }),
-      ],
-    );
-  }
-}
-
-class _SliderRow extends StatelessWidget {
-  final String label;
-  final double value;
-  final double min;
-  final double max;
-  final ValueChanged<double> onChanged;
-
-  const _SliderRow({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(width: 16, child: Text(label, style: const TextStyle(fontSize: 12))),
-        Expanded(child: Slider(value: value, min: min, max: max, onChanged: onChanged)),
-      ],
     );
   }
 }
