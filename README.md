@@ -6,7 +6,7 @@ Flutter mobile app for notes, tasks, calendar, study timer, and OTA updates. Par
 
 | | |
 |---|---|
-| **Framework** | Flutter (Dart ^3.10.3) |
+| **Framework** | Flutter (Dart >= 3.10.3) |
 | **State management** | Riverpod + Provider |
 | **HTTP client** | Dio |
 | **Navigation** | GoRouter |
@@ -72,7 +72,11 @@ flutter analyze
 | `build.yml` | Push to `main` | Builds release APK, uploads to S3, notifies backend |
 | `pr-build.yml` | PR to `main` | Build gate — ensures APK compiles before merge |
 
-OTA update flow: CI builds APK → uploads to MinIO (S3) → calls Marquer Backend `/internal/app-releases` via GitHub OIDC → app checks `/app/latest` on launch.
+OTA update flow:
+1. CI builds release APK
+2. Uploads to MinIO (S3)
+3. Notifies Marquer Backend at `/internal/app-releases` via GitHub OIDC
+4. App checks `/app/latest` on launch and prompts user to update
 
 ## PR Conventions
 
