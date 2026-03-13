@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/study/store_study_session_request.dart';
 import 'package:marquer/api/models/study/study_subject.dart';
@@ -7,6 +6,8 @@ import 'package:marquer/api/models/study/timer_mode.dart';
 import 'package:marquer/api/services/study_service.dart';
 import 'package:marquer/providers/study/study_settings_provider.dart';
 import 'package:marquer/providers/study/study_subjects_provider.dart';
+import 'package:marquer/screens/study/widgets/countdown_config_section.dart';
+import 'package:marquer/screens/study/widgets/pomodoro_config_section.dart';
 
 class CreateSessionSheet extends ConsumerStatefulWidget {
   const CreateSessionSheet({super.key});
@@ -88,137 +89,31 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
   Widget _buildModeConfig(ColorScheme colorScheme, OutlineInputBorder inputBorder) {
     switch (_mode) {
       case TimerMode.countDown:
-        return Padding(
-          key: const ValueKey('countdown'),
-          padding: const EdgeInsets.only(top: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Duration',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: [
-                  ...[30, 60, 90, 120].map(
-                    (m) => ChoiceChip(
-                      label: Text('${m}m'),
-                      selected: !_customCountDown && _countDownMinutes == m,
-                      onSelected: (_) => setState(() {
-                        _customCountDown = false;
-                        _countDownMinutes = m;
-                      }),
-                    ),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Custom'),
-                    selected: _customCountDown,
-                    onSelected: (_) => setState(() {
-                      _customCountDown = true;
-                      _countDownMinutes =
-                          (int.tryParse(_countDownCtrl.text) ?? 30).clamp(
-                            1,
-                            600,
-                          );
-                    }),
-                  ),
-                ],
-              ),
-              if (_customCountDown) ...[
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _countDownCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (v) {
-                    final parsed = int.tryParse(v) ?? 1;
-                    final clamped = parsed.clamp(1, 600);
-                    setState(() => _countDownMinutes = clamped);
-                    if (clamped != parsed) {
-                      _countDownCtrl.text = clamped.toString();
-                      _countDownCtrl.selection = TextSelection.fromPosition(
-                        TextPosition(offset: _countDownCtrl.text.length),
-                      );
-                    }
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Duration',
-                    filled: true,
-                    fillColor: colorScheme.surface,
-                    border: inputBorder,
-                    enabledBorder: inputBorder,
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
-                    ),
-                    suffixText: 'min',
-                  ),
-                ),
-              ],
-            ],
-          ),
+        return CountdownConfigSection(
+          countDownMinutes: _countDownMinutes,
+          customCountDown: _customCountDown,
+          countDownCtrl: _countDownCtrl,
+          onPresetSelected: (m) => setState(() {
+            _customCountDown = false;
+            _countDownMinutes = m;
+          }),
+          onCustomSelected: () => setState(() {
+            _customCountDown = true;
+            _countDownMinutes =
+                (int.tryParse(_countDownCtrl.text) ?? 30).clamp(1, 600);
+          }),
+          onCustomChanged: (v) => setState(() => _countDownMinutes = v),
         );
       case TimerMode.pomodoro:
-        return Padding(
-          key: const ValueKey('pomodoro'),
-          padding: const EdgeInsets.only(top: 16),
-          child: Container(
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                _NumField(
-                  'Work',
-                  _workMinutes,
-                  1,
-                  120,
-                  (v) => setState(() => _workMinutes = v),
-                  unit: 'min',
-                ),
-                Divider(
-                  height: 1,
-                  color: colorScheme.onSurface.withValues(alpha: 0.08),
-                ),
-                _NumField(
-                  'Short break',
-                  _shortBreak,
-                  1,
-                  60,
-                  (v) => setState(() => _shortBreak = v),
-                  unit: 'min',
-                ),
-                Divider(
-                  height: 1,
-                  color: colorScheme.onSurface.withValues(alpha: 0.08),
-                ),
-                _NumField(
-                  'Long break',
-                  _longBreak,
-                  1,
-                  60,
-                  (v) => setState(() => _longBreak = v),
-                  unit: 'min',
-                ),
-                Divider(
-                  height: 1,
-                  color: colorScheme.onSurface.withValues(alpha: 0.08),
-                ),
-                _NumField(
-                  'Cycles',
-                  _cycles,
-                  1,
-                  20,
-                  (v) => setState(() => _cycles = v),
-                ),
-              ],
-            ),
-          ),
+        return PomodoroConfigSection(
+          workMinutes: _workMinutes,
+          shortBreak: _shortBreak,
+          longBreak: _longBreak,
+          cycles: _cycles,
+          onWorkChanged: (v) => setState(() => _workMinutes = v),
+          onShortBreakChanged: (v) => setState(() => _shortBreak = v),
+          onLongBreakChanged: (v) => setState(() => _longBreak = v),
+          onCyclesChanged: (v) => setState(() => _cycles = v),
         );
       default:
         return const SizedBox.shrink(key: ValueKey('none'));
@@ -451,59 +346,6 @@ class _CreateSessionSheetState extends ConsumerState<CreateSessionSheet> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _NumField extends StatelessWidget {
-  final String label;
-  final int value;
-  final int min;
-  final int max;
-  final ValueChanged<int> onChanged;
-  final String? unit;
-
-  const _NumField(
-    this.label,
-    this.value,
-    this.min,
-    this.max,
-    this.onChanged, {
-    this.unit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.remove, size: 18),
-            onPressed: value > min ? () => onChanged(value - 1) : null,
-          ),
-          SizedBox(
-            width: 48,
-            child: Text(
-              unit != null ? '$value $unit' : '$value',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.add, size: 18),
-            onPressed: value < max ? () => onChanged(value + 1) : null,
-          ),
-        ],
       ),
     );
   }
