@@ -5,7 +5,7 @@ class CalendarOverview {
   CalendarOverview({required this.datesWithIncomplete, required this.datesWithPlans});
 
   factory CalendarOverview.fromJson(Map<String, dynamic> json) => CalendarOverview(
-    datesWithIncomplete: Set<String>.from(json['dates_with_incomplete'] as List),
-    datesWithPlans: Set<String>.from(json['dates_with_plans'] as List),
+    datesWithIncomplete: Set<String>.from(json['tasks'] as List),
+    datesWithPlans: Set<String>.from(json['plan_tasks'] as List),
   );
 }
