@@ -57,8 +57,11 @@ class _NoteTileState extends ConsumerState<NoteTile> {
       context.go('/notes/${note.id}');
     } else if (result == 'delete') {
       setState(() => _loading = true);
-      await ref.read(notesProvider.notifier).delete(note.id);
-      if (mounted) setState(() => _loading = false);
+      try {
+        await ref.read(notesProvider.notifier).delete(note.id);
+      } finally {
+        if (mounted) setState(() => _loading = false);
+      }
     }
   }
 

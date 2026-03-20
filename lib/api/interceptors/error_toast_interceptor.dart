@@ -33,7 +33,11 @@ class ErrorToastInterceptor extends Interceptor {
     }
 
     if (e.response?.statusCode == 401) {
-      await logout();
+      try {
+        await logout();
+      } catch (_) {
+        // Keep original error handling path intact
+      }
       return 'Authorization required.';
     }
 

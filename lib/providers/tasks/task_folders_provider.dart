@@ -175,7 +175,7 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>>
     await mutate(
       action: () => _service.createFolder(UpsertTaskFolderRequest(name: name)),
       errorMessage: 'Unable to create folder! Try again later',
-      onSuccess: (latest, folder) => [...current, folder],
+      onSuccess: (latest, folder) => [...latest, folder],
     );
   }
 

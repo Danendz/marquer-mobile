@@ -20,6 +20,12 @@ migrate_working_dir/
 .idea/caches/
 .idea/libraries/
 .idea/deviceManager.xml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/markdown.xml
+.idea/tasks.xml
+.idea/dictionaries/
+.idea/shelf/
 
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line

@@ -36,7 +36,7 @@ class CountdownsNotifier extends AsyncNotifier<List<Countdown>>
         CreateCountdownRequest(name: name, targetDate: targetDate, bgImage: await _randomBgImage()),
       ),
       errorMessage: 'Unable to add countdown! Try again later',
-      onSuccess: (latest, created) => [...current, created],
+      onSuccess: (latest, created) => [...latest, created],
     );
   }
 

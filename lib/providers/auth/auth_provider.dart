@@ -54,7 +54,9 @@ class AuthNotifier extends Notifier<AuthState> {
       );
     } catch (e) {
       debugPrint('Failed to fetch user: $e');
-      await logout();
+      // On 401, AuthInterceptor already handled refresh/logout.
+      // On network errors, keep token for retry on next app open.
+      state = AuthState(status: AuthStatus.authenticated, token: token);
     }
   }
 
@@ -81,7 +83,16 @@ class AuthNotifier extends Notifier<AuthState> {
 /// Bridges Riverpod [authProvider] to a [ChangeNotifier] so GoRouter's
 /// [refreshListenable] can trigger navigation on auth state changes.
 class AuthRefreshNotifier extends ChangeNotifier {
+  late final ProviderSubscription<AuthState> _subscription;
+
   AuthRefreshNotifier(WidgetRef ref) {
-    ref.listenManual(authProvider, (_, _) => notifyListeners());
+    _subscription =
+        ref.listenManual(authProvider, (_, _) => notifyListeners());
+  }
+
+  @override
+  void dispose() {
+    _subscription.close();
+    super.dispose();
   }
 }

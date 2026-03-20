@@ -98,6 +98,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         LoginRequest(email: email, password: password),
       );
       await ref.read(authProvider.notifier).setToken(data.token);
+    } catch (_) {
+      // ErrorToastInterceptor already shows user-facing feedback
     } finally {
       if (mounted) setState(() => _loading = false);
     }

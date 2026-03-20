@@ -17,13 +17,12 @@ class StudySubjectsNotifier extends AsyncNotifier<List<StudySubject>>
   Future<List<StudySubject>> build() => _service.getSubjects();
 
   Future<void> addSubject(String name, String color) async {
-    final current = currentValue ?? [];
     await mutate(
       action: () => _service.createSubject(
         UpsertStudySubjectRequest(name: name, color: color),
       ),
       errorMessage: 'Unable to create subject',
-      onSuccess: (latest, created) => [...current, created],
+      onSuccess: (latest, created) => [...latest, created],
     );
   }
 

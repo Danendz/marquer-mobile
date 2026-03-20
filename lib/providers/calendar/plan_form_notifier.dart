@@ -97,6 +97,10 @@ class PlanFormState {
   String? validate() {
     if (name.trim().isEmpty) return 'Plan name is required';
     if (validTasks.isEmpty) return 'At least one event is required';
+    if (hasEndDate && endDate == null) return 'End date is required';
+    if (hasEndDate && endDate != null && endDate!.isBefore(startDate)) {
+      return 'End date must be on or after the start date';
+    }
     return null;
   }
 }

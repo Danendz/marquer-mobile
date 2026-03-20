@@ -34,7 +34,7 @@ class PlansNotifier extends AsyncNotifier<List<Plan>>
       errorMessage: 'Unable to create plan! Try again later',
       onSuccess: (latest, created) {
         _invalidateCalendar();
-        return [...current, created];
+        return [...latest, created];
       },
     );
     return result != null;
@@ -89,7 +89,7 @@ class PlansNotifier extends AsyncNotifier<List<Plan>>
           startDate: plan.startDate,
           endDate: plan.endDate,
           isActive: !plan.isActive,
-          tasks: plan.tasks.map((t) => UpdatePlanTaskRequest(id: t.id, name: t.name, sortOrder: t.sortOrder)).toList(),
+          tasks: plan.tasks.map((t) => UpdatePlanTaskRequest(id: t.id, name: t.name, sortOrder: t.sortOrder, startTime: t.startTime, endTime: t.endTime)).toList(),
         );
         return _service.updatePlan(plan.id.toString(), request);
       },

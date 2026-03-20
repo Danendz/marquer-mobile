@@ -9,6 +9,8 @@ final sessionFormProvider =
 );
 
 class SessionFormState {
+  static const _unset = Object();
+
   final String name;
   final TimerMode mode;
   final StudySubject? subject;
@@ -36,7 +38,7 @@ class SessionFormState {
   SessionFormState copyWith({
     String? name,
     TimerMode? mode,
-    StudySubject? subject,
+    Object? subject = _unset,
     int? countDownMinutes,
     bool? customCountDown,
     int? workMinutes,
@@ -47,7 +49,7 @@ class SessionFormState {
   }) => SessionFormState(
     name: name ?? this.name,
     mode: mode ?? this.mode,
-    subject: subject ?? this.subject,
+    subject: identical(subject, _unset) ? this.subject : subject as StudySubject?,
     countDownMinutes: countDownMinutes ?? this.countDownMinutes,
     customCountDown: customCountDown ?? this.customCountDown,
     workMinutes: workMinutes ?? this.workMinutes,
