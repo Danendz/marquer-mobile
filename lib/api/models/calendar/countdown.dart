@@ -1,41 +1,20 @@
-class Countdown {
-  final int id;
-  final String name;
-  final String targetDate;
-  final String bgImage;
-  final bool isPinned;
-  final String createdAt;
-  final String updatedAt;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  Countdown({
-    required this.id,
-    required this.name,
-    required this.targetDate,
-    required this.bgImage,
-    required this.isPinned,
-    required this.createdAt,
-    required this.updatedAt,
-  });
+part 'countdown.freezed.dart';
+part 'countdown.g.dart';
 
-  factory Countdown.fromJson(Map<String, dynamic> json) => Countdown(
-    id: json['id'] as int,
-    name: json['name'] as String,
-    targetDate: json['target_date'] as String,
-    bgImage: json['bg_image'] as String,
-    isPinned: json['is_pinned'] as bool,
-    createdAt: json['created_at'] as String,
-    updatedAt: json['updated_at'] as String,
-  );
+@freezed
+abstract class Countdown with _$Countdown {
+  const factory Countdown({
+    required int id,
+    required String name,
+    @JsonKey(name: 'target_date') required String targetDate,
+    @JsonKey(name: 'bg_image') required String bgImage,
+    @JsonKey(name: 'is_pinned') required bool isPinned,
+    @JsonKey(name: 'created_at') required String createdAt,
+    @JsonKey(name: 'updated_at') required String updatedAt,
+  }) = _Countdown;
 
-  Countdown copyWith({String? name, String? targetDate, bool? isPinned, String? bgImage}) {
-    return Countdown(
-      id: id,
-      name: name ?? this.name,
-      targetDate: targetDate ?? this.targetDate,
-      bgImage: bgImage ?? this.bgImage,
-      isPinned: isPinned ?? this.isPinned,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-    );
-  }
+  factory Countdown.fromJson(Map<String, dynamic> json) =>
+      _$CountdownFromJson(json);
 }

@@ -1,17 +1,16 @@
-﻿class AuthResponse {
-  final String token;
-  final String tokenType;
-  final int expiresIn;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  AuthResponse({
-    required this.token,
-    required this.tokenType,
-    required this.expiresIn,
-  });
+part 'auth_response.freezed.dart';
+part 'auth_response.g.dart';
 
-  factory AuthResponse.fromJson(Map<String, dynamic> json) => AuthResponse(
-    token: json['token'] as String,
-    tokenType: json['token_type'] as String,
-    expiresIn: json['expires_in'] as int,
-  );
+@freezed
+abstract class AuthResponse with _$AuthResponse {
+  const factory AuthResponse({
+    required String token,
+    @JsonKey(name: 'token_type') required String tokenType,
+    @JsonKey(name: 'expires_in') required int expiresIn,
+  }) = _AuthResponse;
+
+  factory AuthResponse.fromJson(Map<String, dynamic> json) =>
+      _$AuthResponseFromJson(json);
 }

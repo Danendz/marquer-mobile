@@ -1,17 +1,17 @@
-﻿class UpsertTaskCategoryRequest {
-  final String name;
-  final int taskFolderId;
-  final String? color;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  const UpsertTaskCategoryRequest({
-    required this.name,
-    required this.taskFolderId,
-    this.color,
-  });
+part 'upsert_task_category_request.freezed.dart';
+part 'upsert_task_category_request.g.dart';
 
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'task_folder_id': taskFolderId,
-    if (color != null) 'color': color,
-  };
+@freezed
+abstract class UpsertTaskCategoryRequest with _$UpsertTaskCategoryRequest {
+  @JsonSerializable(includeIfNull: false)
+  const factory UpsertTaskCategoryRequest({
+    required String name,
+    @JsonKey(name: 'task_folder_id') required int taskFolderId,
+    String? color,
+  }) = _UpsertTaskCategoryRequest;
+
+  factory UpsertTaskCategoryRequest.fromJson(Map<String, dynamic> json) =>
+      _$UpsertTaskCategoryRequestFromJson(json);
 }

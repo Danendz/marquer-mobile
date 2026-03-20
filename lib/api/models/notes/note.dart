@@ -1,23 +1,17 @@
-﻿class Note {
-  final int id;
-  final String title;
-  final String content;
-  final String createdAt;
-  final String updatedAt;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  Note({
-    required this.id,
-    required this.title,
-    required this.content,
-    required this.createdAt,
-    required this.updatedAt,
-  });
+part 'note.freezed.dart';
+part 'note.g.dart';
 
-  factory Note.fromJson(Map<String, dynamic> json) => Note(
-    id: json['id'] as int,
-    title: json['title'] as String,
-    content: json['content'] as String,
-    createdAt: json['created_at'] as String,
-    updatedAt: json['updated_at'] as String,
-  );
+@freezed
+abstract class Note with _$Note {
+  const factory Note({
+    required int id,
+    required String title,
+    required String content,
+    @JsonKey(name: 'created_at') required String createdAt,
+    @JsonKey(name: 'updated_at') required String updatedAt,
+  }) = _Note;
+
+  factory Note.fromJson(Map<String, dynamic> json) => _$NoteFromJson(json);
 }

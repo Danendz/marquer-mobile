@@ -1,42 +1,23 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:marquer/api/models/study/timer_mode.dart';
 
-class StoreStudySessionRequest {
-  final String name;
-  final int? studySubjectId;
-  final TimerMode timerMode;
-  final int? plannedDurationSeconds;
-  final int? pomodoroWorkMinutes;
-  final int? pomodoroShortBreakMinutes;
-  final int? pomodoroLongBreakMinutes;
-  final int? pomodoroCycles;
+part 'store_study_session_request.freezed.dart';
+part 'store_study_session_request.g.dart';
 
-  StoreStudySessionRequest({
-    required this.name,
-    this.studySubjectId,
-    required this.timerMode,
-    this.plannedDurationSeconds,
-    this.pomodoroWorkMinutes,
-    this.pomodoroShortBreakMinutes,
-    this.pomodoroLongBreakMinutes,
-    this.pomodoroCycles,
-  });
+@freezed
+abstract class StoreStudySessionRequest with _$StoreStudySessionRequest {
+  @JsonSerializable(includeIfNull: false)
+  const factory StoreStudySessionRequest({
+    required String name,
+    @JsonKey(name: 'study_subject_id') int? studySubjectId,
+    @JsonKey(name: 'timer_mode') required TimerMode timerMode,
+    @JsonKey(name: 'planned_duration_seconds') int? plannedDurationSeconds,
+    @JsonKey(name: 'pomodoro_work_minutes') int? pomodoroWorkMinutes,
+    @JsonKey(name: 'pomodoro_short_break_minutes') int? pomodoroShortBreakMinutes,
+    @JsonKey(name: 'pomodoro_long_break_minutes') int? pomodoroLongBreakMinutes,
+    @JsonKey(name: 'pomodoro_cycles') int? pomodoroCycles,
+  }) = _StoreStudySessionRequest;
 
-  Map<String, dynamic> toJson() {
-    final m = <String, dynamic>{'name': name, 'timer_mode': timerMode.value};
-    if (studySubjectId != null) m['study_subject_id'] = studySubjectId;
-    if (plannedDurationSeconds != null) {
-      m['planned_duration_seconds'] = plannedDurationSeconds;
-    }
-    if (pomodoroWorkMinutes != null) {
-      m['pomodoro_work_minutes'] = pomodoroWorkMinutes;
-    }
-    if (pomodoroShortBreakMinutes != null) {
-      m['pomodoro_short_break_minutes'] = pomodoroShortBreakMinutes;
-    }
-    if (pomodoroLongBreakMinutes != null) {
-      m['pomodoro_long_break_minutes'] = pomodoroLongBreakMinutes;
-    }
-    if (pomodoroCycles != null) m['pomodoro_cycles'] = pomodoroCycles;
-    return m;
-  }
+  factory StoreStudySessionRequest.fromJson(Map<String, dynamic> json) =>
+      _$StoreStudySessionRequestFromJson(json);
 }

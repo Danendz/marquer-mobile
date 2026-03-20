@@ -1,11 +1,14 @@
-﻿class UpsertTaskFolderRequest {
-  final String name;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  UpsertTaskFolderRequest({
-    required this.name,
-  });
+part 'upsert_task_folder_request.freezed.dart';
+part 'upsert_task_folder_request.g.dart';
 
-  Map<String, dynamic> toJson() => {
-    'name': name,
-  };
+@freezed
+abstract class UpsertTaskFolderRequest with _$UpsertTaskFolderRequest {
+  const factory UpsertTaskFolderRequest({
+    required String name,
+  }) = _UpsertTaskFolderRequest;
+
+  factory UpsertTaskFolderRequest.fromJson(Map<String, dynamic> json) =>
+      _$UpsertTaskFolderRequestFromJson(json);
 }

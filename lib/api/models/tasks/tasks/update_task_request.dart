@@ -1,5 +1,8 @@
 import 'package:marquer/api/models/tasks/tasks/task_status.dart';
 
+/// Update request with clear-field semantics.
+/// Kept as a manual class because the clearX + conditional toJson pattern
+/// doesn't fit json_serializable cleanly.
 class UpdateTaskRequest {
   final String? name;
   final String? date;
@@ -12,7 +15,7 @@ class UpdateTaskRequest {
   final String? color;
   final bool clearColor;
 
-  UpdateTaskRequest({
+  const UpdateTaskRequest({
     this.name,
     this.date,
     this.startTime,

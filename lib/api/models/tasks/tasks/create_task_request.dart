@@ -1,26 +1,20 @@
-class CreateTaskRequest {
-  final String name;
-  final String? date;
-  final String? startTime;
-  final String? endTime;
-  final int? taskCategoryId;
-  final String? color;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  CreateTaskRequest({
-    required this.name,
-    this.date,
-    this.startTime,
-    this.endTime,
-    this.taskCategoryId,
-    this.color,
-  });
+part 'create_task_request.freezed.dart';
+part 'create_task_request.g.dart';
 
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    if (date != null) 'date': date,
-    if (startTime != null) 'start_time': startTime,
-    if (endTime != null) 'end_time': endTime,
-    if (taskCategoryId != null) 'task_category_id': taskCategoryId,
-    if (color != null) 'color': color,
-  };
+@freezed
+abstract class CreateTaskRequest with _$CreateTaskRequest {
+  @JsonSerializable(includeIfNull: false)
+  const factory CreateTaskRequest({
+    required String name,
+    String? date,
+    @JsonKey(name: 'start_time') String? startTime,
+    @JsonKey(name: 'end_time') String? endTime,
+    @JsonKey(name: 'task_category_id') int? taskCategoryId,
+    String? color,
+  }) = _CreateTaskRequest;
+
+  factory CreateTaskRequest.fromJson(Map<String, dynamic> json) =>
+      _$CreateTaskRequestFromJson(json);
 }

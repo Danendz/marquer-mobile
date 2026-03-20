@@ -49,10 +49,10 @@ class CountdownsNotifier extends AsyncNotifier<List<Countdown>> {
     if (current == null) return;
 
     final optimistic = countdown.copyWith(
-      name: request.name,
-      targetDate: request.targetDate,
-      isPinned: request.isPinned,
-      bgImage: request.bgImage,
+      name: request.name ?? countdown.name,
+      targetDate: request.targetDate ?? countdown.targetDate,
+      isPinned: request.isPinned ?? countdown.isPinned,
+      bgImage: request.bgImage ?? countdown.bgImage,
     );
     state = AsyncData([
       for (final c in current) if (c.id == countdown.id) optimistic else c,

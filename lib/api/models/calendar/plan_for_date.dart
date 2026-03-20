@@ -1,63 +1,33 @@
-class PlanTaskForDate {
-  final int id;
-  final String name;
-  final int sortOrder;
-  final String? startTime;
-  final String? endTime;
-  final bool isCompleted;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  const PlanTaskForDate({
-    required this.id,
-    required this.name,
-    required this.sortOrder,
-    this.startTime,
-    this.endTime,
-    required this.isCompleted,
-  });
+part 'plan_for_date.freezed.dart';
+part 'plan_for_date.g.dart';
 
-  factory PlanTaskForDate.fromJson(Map<String, dynamic> json) => PlanTaskForDate(
-    id: json['id'] as int,
-    name: json['name'] as String,
-    sortOrder: json['sort_order'] as int,
-    startTime: json['start_time'] as String?,
-    endTime: json['end_time'] as String?,
-    isCompleted: json['is_completed'] as bool,
-  );
+@freezed
+abstract class PlanTaskForDate with _$PlanTaskForDate {
+  const factory PlanTaskForDate({
+    required int id,
+    required String name,
+    @JsonKey(name: 'sort_order') required int sortOrder,
+    @JsonKey(name: 'start_time') String? startTime,
+    @JsonKey(name: 'end_time') String? endTime,
+    @JsonKey(name: 'is_completed') required bool isCompleted,
+  }) = _PlanTaskForDate;
 
-  PlanTaskForDate copyWith({bool? isCompleted}) => PlanTaskForDate(
-    id: id,
-    name: name,
-    sortOrder: sortOrder,
-    startTime: startTime,
-    endTime: endTime,
-    isCompleted: isCompleted ?? this.isCompleted,
-  );
+  factory PlanTaskForDate.fromJson(Map<String, dynamic> json) =>
+      _$PlanTaskForDateFromJson(json);
 }
 
-class PlanForDate {
-  final int id;
-  final String name;
-  final String? color;
-  final List<PlanTaskForDate> tasks;
+@freezed
+abstract class PlanForDate with _$PlanForDate {
+  @JsonSerializable(explicitToJson: true)
+  const factory PlanForDate({
+    required int id,
+    required String name,
+    String? color,
+    required List<PlanTaskForDate> tasks,
+  }) = _PlanForDate;
 
-  const PlanForDate({
-    required this.id,
-    required this.name,
-    this.color,
-    required this.tasks,
-  });
-
-  factory PlanForDate.fromJson(Map<String, dynamic> json) => PlanForDate(
-    id: json['id'] as int,
-    name: json['name'] as String,
-    color: json['color'] as String?,
-    tasks: (json['tasks'] as List).map((t) => PlanTaskForDate.fromJson(t as Map<String, dynamic>)).toList(),
-  );
-
-  PlanForDate copyWith({List<PlanTaskForDate>? tasks}) => PlanForDate(
-    id: id,
-    name: name,
-    color: color,
-    tasks: tasks ?? this.tasks,
-  );
+  factory PlanForDate.fromJson(Map<String, dynamic> json) =>
+      _$PlanForDateFromJson(json);
 }
