@@ -1,12 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:marquer/api/models/notes/list_note.dart';
 import 'package:marquer/components/notes/note_tile.dart';
 
 class NotesTiles extends StatelessWidget {
   final List<ListNote> notes;
-  final Function(int id) onDeleted;
 
-  const NotesTiles({super.key, required this.notes, required this.onDeleted});
+  const NotesTiles({super.key, required this.notes});
 
   @override
   Widget build(BuildContext context) {
@@ -15,14 +14,14 @@ class NotesTiles extends StatelessWidget {
         padding: const EdgeInsets.all(10),
         itemCount: notes.length,
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 150, // Maximum width of each item before wrapping
-          childAspectRatio: 0.75, // ratio 1.0 = Square (width == height)
-          crossAxisSpacing: 15, // Horizontal space between items
-          mainAxisSpacing: 15, // Vertical space between items
+          maxCrossAxisExtent: 150,
+          childAspectRatio: 0.75,
+          crossAxisSpacing: 15,
+          mainAxisSpacing: 15,
         ),
         itemBuilder: (context, i) {
           final note = notes[i];
-          return NoteTile(note: note, onDeleted: onDeleted);
+          return NoteTile(note: note);
         },
       ),
     );

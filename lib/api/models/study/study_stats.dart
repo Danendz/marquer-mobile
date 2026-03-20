@@ -1,16 +1,17 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:marquer/api/models/study/study_session.dart';
 
-class StudyStats {
-  final int todayTotalSeconds;
-  final List<StudySession> sessions;
+part 'study_stats.freezed.dart';
+part 'study_stats.g.dart';
 
-  StudyStats({required this.todayTotalSeconds, required this.sessions});
+@freezed
+abstract class StudyStats with _$StudyStats {
+  @JsonSerializable(explicitToJson: true)
+  const factory StudyStats({
+    @JsonKey(name: 'today_total_seconds') @Default(0) int todayTotalSeconds,
+    required List<StudySession> sessions,
+  }) = _StudyStats;
 
-  factory StudyStats.fromJson(Map<String, dynamic> json) => StudyStats(
-    todayTotalSeconds: json['today_total_seconds'] as int? ?? 0,
-    sessions:
-        (json['sessions'] as List<dynamic>)
-            .map((e) => StudySession.fromJson(e as Map<String, dynamic>))
-            .toList(),
-  );
+  factory StudyStats.fromJson(Map<String, dynamic> json) =>
+      _$StudyStatsFromJson(json);
 }

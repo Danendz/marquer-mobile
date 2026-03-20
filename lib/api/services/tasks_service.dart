@@ -13,7 +13,7 @@ import '../models/model_parser.dart';
 
 final getIt = GetIt.instance;
 
-final class TasksService {
+class TasksService {
   final api = getIt<ApiService>(instanceName: 'api');
 
   // Folders api

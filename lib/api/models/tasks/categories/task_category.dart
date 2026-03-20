@@ -1,48 +1,20 @@
-﻿class TaskCategory {
-  final int? id;
-  final String name;
-  final String color;
-  final int tasksCount;
-  final String? createdAt;
-  final String? updatedAt;
-  final String? tempNewUUID;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  TaskCategory({
-    this.id,
-    required this.name,
-    required this.color,
-    required this.tasksCount,
-    this.createdAt,
-    this.updatedAt,
-    this.tempNewUUID
-  });
+part 'task_category.freezed.dart';
+part 'task_category.g.dart';
 
-  factory TaskCategory.fromJson(Map<String, dynamic> json) => TaskCategory(
-    id: json['id'] as int?,
-    name: json['name'] as String,
-    color: json['color'] as String,
-    tasksCount: (json['tasks_count'] as int?) ?? 0,
-    createdAt: json['created_at'] as String?,
-    updatedAt: json['updated_at'] as String?,
-  );
-
-  TaskCategory copyWith({
+@freezed
+abstract class TaskCategory with _$TaskCategory {
+  const factory TaskCategory({
     int? id,
-    String? name,
-    String? color,
-    int? tasksCount,
-    String? createdAt,
-    String? updatedAt,
-    String? tempNewUUID,
-  }) {
-    return TaskCategory(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      color: color ?? this.color,
-      tasksCount: tasksCount ?? this.tasksCount,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      tempNewUUID: tempNewUUID ?? this.tempNewUUID,
-    );
-  }
+    required String name,
+    required String color,
+    @JsonKey(name: 'tasks_count') @Default(0) int tasksCount,
+    @JsonKey(name: 'created_at') String? createdAt,
+    @JsonKey(name: 'updated_at') String? updatedAt,
+    @JsonKey(includeFromJson: false, includeToJson: false) String? tempNewUUID,
+  }) = _TaskCategory;
+
+  factory TaskCategory.fromJson(Map<String, dynamic> json) =>
+      _$TaskCategoryFromJson(json);
 }

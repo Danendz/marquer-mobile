@@ -1,20 +1,17 @@
-﻿class CheckLatestResponse {
-  final String version;
-  final String? versionFull;
-  final String downloadUrl;
-  final String? changelog;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  CheckLatestResponse({
-    required this.version,
-    this.versionFull,
-    required this.downloadUrl,
-    this.changelog,
-  });
+part 'check_latest_response.freezed.dart';
+part 'check_latest_response.g.dart';
 
-  factory CheckLatestResponse.fromJson(Map<String, dynamic> json) => CheckLatestResponse(
-    version: json['version'] as String,
-    versionFull: json['version_full'] as String?,
-    downloadUrl: json['download_url'] as String,
-    changelog: json['changelog'] as String?,
-  );
+@freezed
+abstract class CheckLatestResponse with _$CheckLatestResponse {
+  const factory CheckLatestResponse({
+    required String version,
+    @JsonKey(name: 'version_full') String? versionFull,
+    @JsonKey(name: 'download_url') required String downloadUrl,
+    String? changelog,
+  }) = _CheckLatestResponse;
+
+  factory CheckLatestResponse.fromJson(Map<String, dynamic> json) =>
+      _$CheckLatestResponseFromJson(json);
 }

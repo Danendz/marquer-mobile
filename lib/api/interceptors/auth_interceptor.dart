@@ -1,20 +1,25 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:marquer/api/services/auth_service.dart';
-import 'package:marquer/stores/auth_store.dart';
 
 class AuthInterceptor extends Interceptor {
-  final AuthStore auth;
+  final String? Function() getToken;
+  final Future<void> Function(String token) setToken;
+  final Future<void> Function() logout;
 
-  AuthInterceptor(this.auth);
+  AuthInterceptor({
+    required this.getToken,
+    required this.setToken,
+    required this.logout,
+  });
 
   bool _isRefreshing = false;
   final List<_QueuedRequest> _queue = [];
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    final token = auth.token;
+    final token = getToken();
 
     if (token == null || token.isEmpty) {
       return handler.next(options);
@@ -70,7 +75,7 @@ class AuthInterceptor extends Interceptor {
     try {
       final data = await authService.refresh();
       final newToken = data.token;
-      await auth.setToken(newToken);
+      await setToken(newToken);
 
       final queued = List<_QueuedRequest>.from(_queue);
       _queue.clear();
@@ -97,7 +102,7 @@ class AuthInterceptor extends Interceptor {
         item.completer.completeError(e);
       }
       _isRefreshing = false;
-      await auth.logout();
+      await logout();
 
       return handler.next(err);
     }

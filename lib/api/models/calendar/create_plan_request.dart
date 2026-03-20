@@ -1,49 +1,38 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:marquer/api/models/calendar/plan_schedule.dart';
 
-class CreatePlanTaskRequest {
-  final String name;
-  final int sortOrder;
-  final String? startTime;
-  final String? endTime;
+part 'create_plan_request.freezed.dart';
+part 'create_plan_request.g.dart';
 
-  const CreatePlanTaskRequest({
-    required this.name,
-    required this.sortOrder,
-    this.startTime,
-    this.endTime,
-  });
+@freezed
+abstract class CreatePlanTaskRequest with _$CreatePlanTaskRequest {
+  @JsonSerializable(includeIfNull: false)
+  const factory CreatePlanTaskRequest({
+    required String name,
+    @JsonKey(name: 'sort_order') required int sortOrder,
+    @JsonKey(name: 'start_time') String? startTime,
+    @JsonKey(name: 'end_time') String? endTime,
+  }) = _CreatePlanTaskRequest;
 
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'sort_order': sortOrder,
-    if (startTime != null) 'start_time': startTime,
-    if (endTime != null) 'end_time': endTime,
-  };
+  factory CreatePlanTaskRequest.fromJson(Map<String, dynamic> json) =>
+      _$CreatePlanTaskRequestFromJson(json);
 }
 
-class CreatePlanRequest {
-  final String name;
-  final PlanSchedule schedule;
-  final String startDate;
-  final String? endDate;
-  final String? color;
-  final List<CreatePlanTaskRequest> tasks;
+@freezed
+abstract class CreatePlanRequest with _$CreatePlanRequest {
+  @JsonSerializable(includeIfNull: false, explicitToJson: true)
+  const factory CreatePlanRequest({
+    required String name,
+    @JsonKey(toJson: _scheduleToJson, fromJson: PlanSchedule.fromJson)
+    required PlanSchedule schedule,
+    @JsonKey(name: 'start_date') required String startDate,
+    @JsonKey(name: 'end_date') String? endDate,
+    String? color,
+    required List<CreatePlanTaskRequest> tasks,
+  }) = _CreatePlanRequest;
 
-  const CreatePlanRequest({
-    required this.name,
-    required this.schedule,
-    required this.startDate,
-    this.endDate,
-    this.color,
-    required this.tasks,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'schedule': schedule.toJson(),
-    'start_date': startDate,
-    if (endDate != null) 'end_date': endDate,
-    if (color != null) 'color': color,
-    'tasks': tasks.map((t) => t.toJson()).toList(),
-  };
+  factory CreatePlanRequest.fromJson(Map<String, dynamic> json) =>
+      _$CreatePlanRequestFromJson(json);
 }
+
+Map<String, dynamic> _scheduleToJson(PlanSchedule s) => s.toJson();

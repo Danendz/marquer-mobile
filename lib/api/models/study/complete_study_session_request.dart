@@ -1,19 +1,16 @@
-class CompleteStudySessionRequest {
-  final int actualDurationSeconds;
-  final int? pomodoroCompletedCycles;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  CompleteStudySessionRequest({
-    required this.actualDurationSeconds,
-    this.pomodoroCompletedCycles,
-  });
+part 'complete_study_session_request.freezed.dart';
+part 'complete_study_session_request.g.dart';
 
-  Map<String, dynamic> toJson() {
-    final m = <String, dynamic>{
-      'actual_duration_seconds': actualDurationSeconds,
-    };
-    if (pomodoroCompletedCycles != null) {
-      m['pomodoro_completed_cycles'] = pomodoroCompletedCycles;
-    }
-    return m;
-  }
+@freezed
+abstract class CompleteStudySessionRequest with _$CompleteStudySessionRequest {
+  @JsonSerializable(includeIfNull: false)
+  const factory CompleteStudySessionRequest({
+    @JsonKey(name: 'actual_duration_seconds') required int actualDurationSeconds,
+    @JsonKey(name: 'pomodoro_completed_cycles') int? pomodoroCompletedCycles,
+  }) = _CompleteStudySessionRequest;
+
+  factory CompleteStudySessionRequest.fromJson(Map<String, dynamic> json) =>
+      _$CompleteStudySessionRequestFromJson(json);
 }

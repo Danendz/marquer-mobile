@@ -1,8 +1,7 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:marquer/api/interceptors/auth_interceptor.dart';
-import 'package:marquer/stores/auth_store.dart';
 import 'package:sentry_dio/sentry_dio.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'interceptors/error_toast_interceptor.dart';
@@ -11,10 +10,13 @@ import 'models/api_response.dart';
 
 class ApiService {
   final Dio _dio;
-  final AuthStore auth;
 
-  ApiService({String? baseUrl, required this.auth})
-    : _dio =
+  ApiService({
+    String? baseUrl,
+    required String? Function() getToken,
+    required Future<void> Function(String token) setToken,
+    required Future<void> Function() logout,
+  }) : _dio =
           Dio(
               BaseOptions(
                 baseUrl: baseUrl ?? dotenv.get('MARQUER_API_URL'),
@@ -27,8 +29,12 @@ class ApiService {
               ),
             )
             ..interceptors.addAll([
-              AuthInterceptor(auth),
-              ErrorToastInterceptor(auth),
+              AuthInterceptor(
+                getToken: getToken,
+                setToken: setToken,
+                logout: logout,
+              ),
+              ErrorToastInterceptor(logout: logout),
               LogInterceptor(
                 requestHeader: true,
                 requestBody: true,

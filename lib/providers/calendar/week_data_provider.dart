@@ -9,15 +9,17 @@ import 'package:marquer/api/models/tasks/tasks/task_status.dart';
 import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
 import 'package:marquer/api/services/calendar_service.dart';
 import 'package:marquer/api/services/tasks_service.dart';
-import 'package:marquer/services/toast_service.dart';
+import 'package:marquer/providers/optimistic_mutation.dart';
 import 'package:marquer/utils/format.dart';
+import 'package:marquer/services/toast_service.dart';
 
 final weekDataProvider =
     AsyncNotifierProvider.family<WeekDataNotifier, WeekData, String>(
   WeekDataNotifier.new,
 );
 
-class WeekDataNotifier extends AsyncNotifier<WeekData> {
+class WeekDataNotifier extends AsyncNotifier<WeekData>
+    with OptimisticMutation {
   WeekDataNotifier(this.mondayStr);
   final String mondayStr;
 
@@ -39,11 +41,10 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
   }
 
   Future<void> togglePlanTask(int planTaskId, int planId, String date) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     _pendingMutations++;
-    // Optimistic toggle
     state = AsyncData(_toggleInData(current, planTaskId, planId, date, null));
 
     try {
@@ -61,77 +62,65 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
   }
 
   Future<void> toggleTask(Task task, String date) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     _pendingMutations++;
     final newStatus = task.status == TaskStatus.done ? TaskStatus.draft : TaskStatus.done;
     state = AsyncData(_updateTaskInData(current, date, task.id, task.copyWith(status: newStatus)));
 
-    try {
-      final updated = await _tasksService.updateTask(
+    await mutate(
+      action: () => _tasksService.updateTask(
         task.id.toString(),
         UpdateTaskRequest(status: newStatus),
-      );
-      if (!ref.mounted) return;
-      state = AsyncData(_updateTaskInData(state.asData!.value, date, task.id, updated));
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData(_updateTaskInData(state.asData?.value ?? current, date, task.id, task));
-      debugPrint(e.toString());
-      ToastService.showError('Unable to update event! Try again later');
-    } finally {
-      _pendingMutations--;
-    }
+      ),
+      errorMessage: 'Unable to update event! Try again later',
+      rollback: () => _updateTaskInData(state.asData?.value ?? current, date, task.id, task),
+      onSuccess: (latest, updated) => _updateTaskInData(latest, date, task.id, updated),
+    );
+    _pendingMutations--;
   }
 
   Future<void> deleteTask(Task task, String date) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     _pendingMutations++;
     state = AsyncData(_updateTaskInData(current, date, task.id, null));
 
-    try {
-      await _tasksService.deleteTask(task.id.toString());
-    } catch (e) {
-      if (!ref.mounted) return;
-      final latest = state.asData?.value ?? current;
-      final updatedTasks = Map<String, List<Task>>.from(latest.tasks);
-      final list = List<Task>.from(updatedTasks[date] ?? []);
-      if (!list.any((t) => t.id == task.id)) list.insert(0, task);
-      updatedTasks[date] = list;
-      state = AsyncData(latest.copyWith(tasks: updatedTasks));
-      debugPrint(e.toString());
-      ToastService.showError('Unable to delete event! Try again later');
-    } finally {
-      _pendingMutations--;
-    }
+    await mutate(
+      action: () => _tasksService.deleteTask(task.id.toString()),
+      errorMessage: 'Unable to delete event! Try again later',
+      rollback: () {
+        final latest = state.asData?.value ?? current;
+        final updatedTasks = Map<String, List<Task>>.from(latest.tasks);
+        final list = List<Task>.from(updatedTasks[date] ?? []);
+        if (!list.any((t) => t.id == task.id)) list.insert(0, task);
+        updatedTasks[date] = list;
+        return latest.copyWith(tasks: updatedTasks);
+      },
+    );
+    _pendingMutations--;
   }
 
   Future<void> updateTask(Task task, String date, UpdateTaskRequest request, Task optimistic) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     _pendingMutations++;
     state = AsyncData(_updateTaskInData(current, date, task.id, optimistic));
 
-    try {
-      final updated = await _tasksService.updateTask(task.id.toString(), request);
-      if (!ref.mounted) return;
-      state = AsyncData(_updateTaskInData(state.asData!.value, date, task.id, updated));
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData(_updateTaskInData(state.asData?.value ?? current, date, task.id, task));
-      debugPrint(e.toString());
-      ToastService.showError('Unable to update event! Try again later');
-    } finally {
-      _pendingMutations--;
-    }
+    await mutate(
+      action: () => _tasksService.updateTask(task.id.toString(), request),
+      errorMessage: 'Unable to update event! Try again later',
+      rollback: () => _updateTaskInData(state.asData?.value ?? current, date, task.id, task),
+      onSuccess: (latest, updated) => _updateTaskInData(latest, date, task.id, updated),
+    );
+    _pendingMutations--;
   }
 
   Future<void> addTask(String name, String date, {String? startTime, String? endTime, String? color}) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     _pendingMutations++;
@@ -151,20 +140,15 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
     updatedTasks[date] = [placeholder, ...(updatedTasks[date] ?? [])];
     state = AsyncData(current.copyWith(tasks: updatedTasks));
 
-    try {
-      final created = await _tasksService.createTask(
+    await mutate(
+      action: () => _tasksService.createTask(
         CreateTaskRequest(name: name, date: date, startTime: startTime, endTime: endTime, color: color),
-      );
-      if (!ref.mounted) return;
-      state = AsyncData(_updateTaskInData(state.asData!.value, date, placeholder.id, created));
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData(_updateTaskInData(state.asData?.value ?? current, date, placeholder.id, null));
-      debugPrint(e.toString());
-      ToastService.showError('Unable to add event! Try again later');
-    } finally {
-      _pendingMutations--;
-    }
+      ),
+      errorMessage: 'Unable to add event! Try again later',
+      rollback: () => _updateTaskInData(state.asData?.value ?? current, date, placeholder.id, null),
+      onSuccess: (latest, created) => _updateTaskInData(latest, date, placeholder.id, created),
+    );
+    _pendingMutations--;
   }
 
   /// Refetch from server without showing loading state (stale-while-revalidate).
@@ -176,7 +160,7 @@ class WeekDataNotifier extends AsyncNotifier<WeekData> {
 
   /// Refetch from server without showing loading state (stale-while-revalidate).
   Future<void> silentRefresh() async {
-    if (state.asData == null) return; // still loading, skip
+    if (state.asData == null) return;
     try {
       final monday = DateTime.parse(mondayStr);
       final sunday = monday.add(const Duration(days: 6));

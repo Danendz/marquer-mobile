@@ -11,6 +11,7 @@ import 'package:marquer/api/services/study_service.dart';
 import 'package:marquer/providers/study/study_sessions_provider.dart';
 import 'package:marquer/providers/study/study_stats_provider.dart';
 import 'package:marquer/providers/study/timer_state.dart';
+import 'package:marquer/providers/study/timer_state_machine.dart';
 import 'package:marquer/services/foreground_timer_service.dart';
 import 'package:marquer/services/toast_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,6 +23,7 @@ final timerProvider = NotifierProvider<TimerNotifier, TimerState>(
 
 class TimerNotifier extends Notifier<TimerState> {
   final _service = StudyService();
+  final _sm = const TimerStateMachine();
   Timer? _ticker;
   int _tickCount = 0;
   SharedPreferences? _prefs;
@@ -31,46 +33,23 @@ class TimerNotifier extends Notifier<TimerState> {
   Future<SharedPreferences> get _sharedPrefs async =>
       _prefs ??= await SharedPreferences.getInstance();
 
-  String _formatTime(int seconds) {
-    final h = seconds ~/ 3600;
-    final m = (seconds % 3600) ~/ 60;
-    final s = seconds % 60;
-    if (h > 0) {
-      return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-    }
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
+  // ── Background service helpers ──
 
   Future<void> _saveBgState() {
-    String modeStr;
-    switch (state.mode) {
-      case TimerMode.countUp:
-        modeStr = 'countUp';
-        break;
-      case TimerMode.countDown:
-        modeStr = 'countDown';
-        break;
-      case TimerMode.pomodoro:
-        modeStr = 'pomodoro';
-        break;
-    }
+    final modeStr = switch (state.mode) {
+      TimerMode.countUp => 'countUp',
+      TimerMode.countDown => 'countDown',
+      TimerMode.pomodoro => 'pomodoro',
+    };
 
     String? phaseStr;
     if (state.mode == TimerMode.pomodoro) {
-      switch (state.phase) {
-        case TimerPhase.work:
-          phaseStr = 'work';
-          break;
-        case TimerPhase.shortBreak:
-          phaseStr = 'shortBreak';
-          break;
-        case TimerPhase.longBreak:
-          phaseStr = 'longBreak';
-          break;
-        case TimerPhase.idle:
-          phaseStr = 'work';
-          break;
-      }
+      phaseStr = switch (state.phase) {
+        TimerPhase.work => 'work',
+        TimerPhase.shortBreak => 'shortBreak',
+        TimerPhase.longBreak => 'longBreak',
+        TimerPhase.idle => 'work',
+      };
     }
 
     return saveTimerBgState(
@@ -124,8 +103,6 @@ class TimerNotifier extends Notifier<TimerState> {
     }
   }
 
-  // Called when Pause is tapped in the notification.
-  // Does NOT touch bg state — the bg isolate already updated it.
   void _pauseFromBg(int? elapsed) {
     _ticker?.cancel();
     state = state.copyWith(
@@ -141,17 +118,11 @@ class TimerNotifier extends Notifier<TimerState> {
         'pomodoro_completed_cycles': state.completedCycles,
       };
       unawaited(() async {
-        try {
-          await _service.updateSession(id, body);
-        } catch (e) {
-          debugPrint(e.toString());
-        }
+        try { await _service.updateSession(id, body); } catch (e) { debugPrint(e.toString()); }
       }());
     }
   }
 
-  // Called when Resume is tapped in the notification.
-  // Does NOT touch notification or bg_paused — the bg isolate already updated them.
   void _resumeFromBg(int? elapsed) {
     state = state.copyWith(
       isRunning: true,
@@ -163,39 +134,28 @@ class TimerNotifier extends Notifier<TimerState> {
     if (state.serverSession != null) {
       final id = state.serverSession!.id;
       unawaited(() async {
-        try {
-          await _service.updateSession(id, {'status': 'active'});
-        } catch (e) {
-          debugPrint(e.toString());
-        }
+        try { await _service.updateSession(id, {'status': 'active'}); } catch (e) { debugPrint(e.toString()); }
       }());
     }
   }
 
   String _notificationText() {
-    switch (state.mode) {
-      case TimerMode.countUp:
-        return 'Studying: ${_formatTime(state.elapsedSeconds)}';
-      case TimerMode.countDown:
-        return 'Time remaining: ${_formatTime(state.remainingSeconds)}';
-      case TimerMode.pomodoro:
-        final timeText = _formatTime(state.remainingSeconds);
-        switch (state.phase) {
-          case TimerPhase.work:
-            return 'Work \u2014 $timeText remaining';
-          case TimerPhase.shortBreak:
-            return 'Short Break \u2014 $timeText';
-          case TimerPhase.longBreak:
-            return 'Long Break \u2014 $timeText';
-          case TimerPhase.idle:
-            return 'Studying: ${_formatTime(state.elapsedSeconds)}';
-        }
-    }
+    return switch (state.mode) {
+      TimerMode.countUp => 'Studying: ${TimerStateMachine.formatTime(state.elapsedSeconds)}',
+      TimerMode.countDown => 'Time remaining: ${TimerStateMachine.formatTime(state.remainingSeconds)}',
+      TimerMode.pomodoro => switch (state.phase) {
+        TimerPhase.work => 'Work \u2014 ${TimerStateMachine.formatTime(state.remainingSeconds)} remaining',
+        TimerPhase.shortBreak => 'Short Break \u2014 ${TimerStateMachine.formatTime(state.remainingSeconds)}',
+        TimerPhase.longBreak => 'Long Break \u2014 ${TimerStateMachine.formatTime(state.remainingSeconds)}',
+        TimerPhase.idle => 'Studying: ${TimerStateMachine.formatTime(state.elapsedSeconds)}',
+      },
+    };
   }
 
-  String _pausedNotificationText() {
-    return 'Paused \u2014 ${_formatTime(state.elapsedSeconds)}';
-  }
+  String _pausedNotificationText() =>
+      'Paused \u2014 ${TimerStateMachine.formatTime(state.elapsedSeconds)}';
+
+  // ── Local persistence ──
 
   void _saveLocal() {
     final session = state.serverSession;
@@ -215,6 +175,8 @@ class TimerNotifier extends Notifier<TimerState> {
     }));
   }
 
+  // ── Public API ──
+
   @override
   TimerState build() => TimerState(mode: TimerMode.countUp);
 
@@ -231,27 +193,17 @@ class TimerNotifier extends Notifier<TimerState> {
     if (localSessionId == session.id) {
       final localElapsed = prefs.getInt('timer_elapsed_seconds') ?? 0;
       final localCycles = prefs.getInt('timer_completed_cycles') ?? 0;
-      if (localElapsed > elapsedSeconds || localCycles > completedCycles) {
-        localWasNewer = true;
-      }
+      if (localElapsed > elapsedSeconds || localCycles > completedCycles) localWasNewer = true;
       elapsedSeconds = max(elapsedSeconds, localElapsed);
       completedCycles = max(completedCycles, localCycles);
     }
 
-    // Recover elapsed time accumulated by the background foreground service
-    // (handles the case where the app was killed but the service kept running).
-    final bgPaused =
-        await FlutterForegroundTask.getData<bool>(key: 'bg_paused') ?? true;
-    final bgPhase =
-        await FlutterForegroundTask.getData<String>(key: 'bg_phase');
+    final bgPaused = await FlutterForegroundTask.getData<bool>(key: 'bg_paused') ?? true;
+    final bgPhase = await FlutterForegroundTask.getData<String>(key: 'bg_phase');
     if (!bgPaused) {
-      final virtualStartMs = await FlutterForegroundTask.getData<int>(
-        key: 'bg_virtual_start_ms',
-      );
+      final virtualStartMs = await FlutterForegroundTask.getData<int>(key: 'bg_virtual_start_ms');
       if (virtualStartMs != null) {
-        final bgElapsed =
-            (DateTime.now().millisecondsSinceEpoch - virtualStartMs) ~/ 1000;
-        // Don't inflate study elapsed with break time in pomodoro mode.
+        final bgElapsed = (DateTime.now().millisecondsSinceEpoch - virtualStartMs) ~/ 1000;
         final isInBreak = session.timerMode == TimerMode.pomodoro &&
             (bgPhase == 'shortBreak' || bgPhase == 'longBreak');
         if (!isInBreak && bgElapsed > elapsedSeconds) {
@@ -261,59 +213,36 @@ class TimerNotifier extends Notifier<TimerState> {
       }
     }
 
-    // When stop was requested from notification, bg_elapsed_snapshot_s has the
-    // most accurate elapsed time (saved at the moment Stop was pressed).
-    final bgSnapshot = await FlutterForegroundTask.getData<int>(
-      key: 'bg_elapsed_snapshot_s',
-    );
+    final bgSnapshot = await FlutterForegroundTask.getData<int>(key: 'bg_elapsed_snapshot_s');
     if (bgSnapshot != null && bgSnapshot > elapsedSeconds) {
       elapsedSeconds = bgSnapshot;
       localWasNewer = true;
     }
 
-    // Restore pomodoro phase and phase elapsed from bg state.
     int phaseElapsedSeconds = 0;
     if (session.timerMode == TimerMode.pomodoro) {
-      final phaseTotalS =
-          await FlutterForegroundTask.getData<int>(key: 'bg_phase_total_s');
+      final phaseTotalS = await FlutterForegroundTask.getData<int>(key: 'bg_phase_total_s');
       if (!bgPaused) {
-        final phaseVirtualStartMs = await FlutterForegroundTask.getData<int>(
-          key: 'bg_phase_virtual_start_ms',
-        );
+        final phaseVirtualStartMs = await FlutterForegroundTask.getData<int>(key: 'bg_phase_virtual_start_ms');
         if (phaseVirtualStartMs != null) {
-          phaseElapsedSeconds =
-              (DateTime.now().millisecondsSinceEpoch - phaseVirtualStartMs) ~/
-              1000;
-          if (phaseTotalS != null) {
-            phaseElapsedSeconds = phaseElapsedSeconds.clamp(0, phaseTotalS);
-          }
+          phaseElapsedSeconds = (DateTime.now().millisecondsSinceEpoch - phaseVirtualStartMs) ~/ 1000;
+          if (phaseTotalS != null) phaseElapsedSeconds = phaseElapsedSeconds.clamp(0, phaseTotalS);
         }
       } else {
-        final snapshot = await FlutterForegroundTask.getData<int>(
-          key: 'bg_phase_snapshot_elapsed_s',
-        );
+        final snapshot = await FlutterForegroundTask.getData<int>(key: 'bg_phase_snapshot_elapsed_s');
         if (snapshot != null) {
-          phaseElapsedSeconds =
-              phaseTotalS != null ? snapshot.clamp(0, phaseTotalS) : snapshot;
+          phaseElapsedSeconds = phaseTotalS != null ? snapshot.clamp(0, phaseTotalS) : snapshot;
         }
       }
     }
 
-    final TimerPhase restoredPhase;
-    if (session.timerMode == TimerMode.pomodoro) {
-      switch (bgPhase) {
-        case 'shortBreak':
-          restoredPhase = TimerPhase.shortBreak;
-          break;
-        case 'longBreak':
-          restoredPhase = TimerPhase.longBreak;
-          break;
-        default:
-          restoredPhase = TimerPhase.work;
-      }
-    } else {
-      restoredPhase = TimerPhase.idle;
-    }
+    final restoredPhase = session.timerMode == TimerMode.pomodoro
+        ? switch (bgPhase) {
+            'shortBreak' => TimerPhase.shortBreak,
+            'longBreak' => TimerPhase.longBreak,
+            _ => TimerPhase.work,
+          }
+        : TimerPhase.idle;
 
     state = TimerState(
       isRunning: session.status.name == 'active' && !bgPaused,
@@ -337,32 +266,16 @@ class TimerNotifier extends Notifier<TimerState> {
       }));
     }
 
-    // If stop was tapped from the notification while the app was killed,
-    // show the confirmation dialog now that the app has reopened.
-    final bgStopRequested =
-        await FlutterForegroundTask.getData<bool>(
-          key: 'bg_stop_requested',
-        ) ??
-        false;
+    final bgStopRequested = await FlutterForegroundTask.getData<bool>(key: 'bg_stop_requested') ?? false;
     if (bgStopRequested) {
-      await FlutterForegroundTask.saveData(
-        key: 'bg_stop_requested',
-        value: false,
-      );
+      await FlutterForegroundTask.saveData(key: 'bg_stop_requested', value: false);
       state = state.copyWith(isRunning: false, stopRequested: true);
       return;
     }
 
-    final bgCountdownCompleted =
-        await FlutterForegroundTask.getData<bool>(
-          key: 'bg_countdown_completed',
-        ) ??
-        false;
+    final bgCountdownCompleted = await FlutterForegroundTask.getData<bool>(key: 'bg_countdown_completed') ?? false;
     if (bgCountdownCompleted) {
-      await FlutterForegroundTask.saveData(
-        key: 'bg_countdown_completed',
-        value: false,
-      );
+      await FlutterForegroundTask.saveData(key: 'bg_countdown_completed', value: false);
       state = state.copyWith(isRunning: false);
       return;
     }
@@ -381,12 +294,7 @@ class TimerNotifier extends Notifier<TimerState> {
     _clearLocal();
     state = TimerState(
       isRunning: true,
-      phase:
-          session.timerMode == TimerMode.pomodoro
-              ? TimerPhase.work
-              : TimerPhase.idle,
-      elapsedSeconds: 0,
-      phaseElapsedSeconds: 0,
+      phase: session.timerMode == TimerMode.pomodoro ? TimerPhase.work : TimerPhase.idle,
       mode: session.timerMode,
       completedCycles: 0,
       totalCycles: session.pomodoroCycles ?? 4,
@@ -406,14 +314,8 @@ class TimerNotifier extends Notifier<TimerState> {
     _ticker?.cancel();
     state = state.copyWith(isRunning: false);
     WakelockPlus.disable();
-    unawaited(FlutterForegroundTask.saveData(
-      key: 'bg_elapsed_snapshot_s',
-      value: state.elapsedSeconds,
-    ));
-    unawaited(FlutterForegroundTask.saveData(
-      key: 'bg_phase_snapshot_elapsed_s',
-      value: state.phaseElapsedSeconds,
-    ));
+    unawaited(FlutterForegroundTask.saveData(key: 'bg_elapsed_snapshot_s', value: state.elapsedSeconds));
+    unawaited(FlutterForegroundTask.saveData(key: 'bg_phase_snapshot_elapsed_s', value: state.phaseElapsedSeconds));
     unawaited(clearTimerBgState());
     unawaited(updateTimerNotification(_pausedNotificationText(), paused: true));
     if (state.serverSession != null) {
@@ -423,9 +325,7 @@ class TimerNotifier extends Notifier<TimerState> {
           'actual_duration_seconds': state.elapsedSeconds,
           'pomodoro_completed_cycles': state.completedCycles,
         });
-      } catch (e) {
-        debugPrint(e.toString());
-      }
+      } catch (e) { debugPrint(e.toString()); }
     }
   }
 
@@ -437,13 +337,8 @@ class TimerNotifier extends Notifier<TimerState> {
     unawaited(startTimerForegroundService(_notificationText()));
     if (state.serverSession != null) {
       try {
-        await _service.updateSession(
-          state.serverSession!.id,
-          {'status': 'active'},
-        );
-      } catch (e) {
-        debugPrint(e.toString());
-      }
+        await _service.updateSession(state.serverSession!.id, {'status': 'active'});
+      } catch (e) { debugPrint(e.toString()); }
     }
   }
 
@@ -482,18 +377,13 @@ class TimerNotifier extends Notifier<TimerState> {
     _resetTimerState();
     if (session != null) {
       try {
-        await _service.completeSession(
-          session.id,
-          CompleteStudySessionRequest(
-            actualDurationSeconds: elapsed,
-            pomodoroCompletedCycles: cycles,
-          ),
-        );
+        await _service.completeSession(session.id, CompleteStudySessionRequest(
+          actualDurationSeconds: elapsed,
+          pomodoroCompletedCycles: cycles,
+        ));
         ref.invalidate(studyStatsProvider);
         ref.invalidate(studySessionsProvider);
-      } catch (e) {
-        debugPrint(e.toString());
-      }
+      } catch (e) { debugPrint(e.toString()); }
     }
   }
 
@@ -505,9 +395,7 @@ class TimerNotifier extends Notifier<TimerState> {
         await _service.cancelSession(session.id);
         ref.invalidate(studyStatsProvider);
         ref.invalidate(studySessionsProvider);
-      } catch (e) {
-        debugPrint(e.toString());
-      }
+      } catch (e) { debugPrint(e.toString()); }
     }
   }
 
@@ -527,12 +415,7 @@ class TimerNotifier extends Notifier<TimerState> {
     } catch (_) {}
   }
 
-  /// Pauses the Dart ticker without changing isRunning state.
-  /// Used when the Activity is destroyed (detached) but the process is kept
-  /// alive by the foreground service. recoverFromBackground() restores it.
-  void pauseTicker() {
-    _ticker?.cancel();
-  }
+  void pauseTicker() => _ticker?.cancel();
 
   void _startTicker() {
     _ticker?.cancel();
@@ -550,188 +433,34 @@ class TimerNotifier extends Notifier<TimerState> {
     }
     _saveLocal();
 
-    if (state.mode == TimerMode.pomodoro) {
-      _tickPomodoro();
-    } else {
-      final newElapsed = state.elapsedSeconds + 1;
-      // Count-down: auto-complete when done
-      if (state.mode == TimerMode.countDown &&
-          state.targetSeconds != null &&
-          newElapsed >= state.targetSeconds!) {
-        state = state.copyWith(
-          elapsedSeconds: state.targetSeconds,
-          isRunning: false,
-        );
-        _ticker?.cancel();
-        WakelockPlus.disable();
-        unawaited(TimerFeedbackService.playCompletionFeedback());
-        // Navigate to completion — handled by screen listening to state
-        return;
-      }
-      state = state.copyWith(elapsedSeconds: newElapsed);
-    }
-  }
+    final result = _sm.tick(state);
+    state = result.state;
 
-  void _tickPomodoro() {
-    final newPhaseElapsed = state.phaseElapsedSeconds + 1;
-    final phaseTotal = state.currentPhaseTotalSeconds;
-
-    if (newPhaseElapsed >= phaseTotal) {
-      // Phase complete
+    if (result.phaseCompleted) {
       unawaited(TimerFeedbackService.playVibrationOnly());
-      _handlePomodoroPhaseComplete();
-    } else {
-      // Still in current phase
-      // Only count study seconds during work phase
-      final newStudyElapsed =
-          state.phase == TimerPhase.work
-              ? state.elapsedSeconds + 1
-              : state.elapsedSeconds;
-      state = state.copyWith(
-        elapsedSeconds: newStudyElapsed,
-        phaseElapsedSeconds: newPhaseElapsed,
-      );
+      unawaited(_saveBgState());
+    }
+    if (result.timerCompleted) {
+      _ticker?.cancel();
+      WakelockPlus.disable();
+      unawaited(TimerFeedbackService.playCompletionFeedback());
     }
   }
 
   void recoverFromBackground() {
     if (_lastTickTime == null || !state.isRunning) return;
-
-    final missedSeconds =
-        DateTime.now().difference(_lastTickTime!).inSeconds - 1;
+    final missedSeconds = DateTime.now().difference(_lastTickTime!).inSeconds - 1;
     if (missedSeconds > 1) {
-      if (state.mode == TimerMode.countDown && state.targetSeconds != null) {
-        final newElapsed =
-            (state.elapsedSeconds + missedSeconds).clamp(0, state.targetSeconds!);
-        if (newElapsed >= state.targetSeconds!) {
-          state = state.copyWith(
-            elapsedSeconds: state.targetSeconds,
-            isRunning: false,
-          );
-          _ticker?.cancel();
-          WakelockPlus.disable();
-          unawaited(TimerFeedbackService.playCompletionFeedback());
-          return;
-        }
-        state = state.copyWith(elapsedSeconds: newElapsed);
-      } else if (state.mode == TimerMode.pomodoro) {
-        _recoverPomodoro(missedSeconds);
-      } else {
-        // countUp: add missed seconds
-        state = state.copyWith(
-          elapsedSeconds: state.elapsedSeconds + missedSeconds,
-        );
-      }
-    }
-
-    _lastTickTime = DateTime.now();
-    if (state.isRunning && !(_ticker?.isActive ?? false)) _startTicker();
-  }
-
-  void _recoverPomodoro(int missedSeconds) {
-    int remaining = missedSeconds;
-
-    while (remaining > 0 && state.isRunning) {
-      final phaseRemaining =
-          state.currentPhaseTotalSeconds - state.phaseElapsedSeconds;
-
-      if (remaining < phaseRemaining) {
-        // Still within current phase
-        final newElapsed =
-            state.phase == TimerPhase.work
-                ? state.elapsedSeconds + remaining
-                : state.elapsedSeconds;
-        state = state.copyWith(
-          elapsedSeconds: newElapsed,
-          phaseElapsedSeconds: state.phaseElapsedSeconds + remaining,
-        );
-        break;
-      } else {
-        // Current phase completes — consume it and advance
-        remaining -= phaseRemaining;
-        final newElapsed =
-            state.phase == TimerPhase.work
-                ? state.elapsedSeconds + phaseRemaining
-                : state.elapsedSeconds;
-
-        if (state.phase == TimerPhase.work) {
-          final newCycles = state.completedCycles + 1;
-          if (newCycles >= state.totalCycles) {
-            state = state.copyWith(
-              phase: TimerPhase.longBreak,
-              phaseElapsedSeconds: 0,
-              completedCycles: newCycles,
-              elapsedSeconds: newElapsed,
-            );
-          } else {
-            state = state.copyWith(
-              phase: TimerPhase.shortBreak,
-              phaseElapsedSeconds: 0,
-              completedCycles: newCycles,
-              elapsedSeconds: newElapsed,
-            );
-          }
-        } else if (state.phase == TimerPhase.longBreak &&
-            state.completedCycles >= state.totalCycles) {
-          // All cycles done
-          state = state.copyWith(
-            isRunning: false,
-            phaseElapsedSeconds: state.currentPhaseTotalSeconds,
-            elapsedSeconds: newElapsed,
-          );
-          _ticker?.cancel();
-          WakelockPlus.disable();
-          return;
-        } else {
-          // Short break (or unfinished long break) → back to work
-          state = state.copyWith(
-            phase: TimerPhase.work,
-            phaseElapsedSeconds: 0,
-            elapsedSeconds: newElapsed,
-          );
-        }
-      }
-    }
-  }
-
-  void _handlePomodoroPhaseComplete() {
-    if (state.phase == TimerPhase.work) {
-      final newCycles = state.completedCycles + 1;
-      if (newCycles >= state.totalCycles) {
-        // Long break
-        state = state.copyWith(
-          phase: TimerPhase.longBreak,
-          phaseElapsedSeconds: 0,
-          completedCycles: newCycles,
-          elapsedSeconds: state.elapsedSeconds + 1,
-        );
-      } else {
-        // Short break
-        state = state.copyWith(
-          phase: TimerPhase.shortBreak,
-          phaseElapsedSeconds: 0,
-          completedCycles: newCycles,
-          elapsedSeconds: state.elapsedSeconds + 1,
-        );
-      }
-      unawaited(_saveBgState());
-    } else {
-      // Break complete → back to work
-      // If long break completed, could auto-complete session
-      if (state.phase == TimerPhase.longBreak &&
-          state.completedCycles >= state.totalCycles) {
-        // All cycles done — auto-complete handled by screen
-        state = state.copyWith(
-          isRunning: false,
-          phaseElapsedSeconds: state.currentPhaseTotalSeconds,
-        );
+      final result = _sm.recoverMissedTime(state, missedSeconds);
+      state = result.state;
+      if (result.timerCompleted) {
         _ticker?.cancel();
         WakelockPlus.disable();
-        unawaited(clearTimerBgState());
-      } else {
-        state = state.copyWith(phase: TimerPhase.work, phaseElapsedSeconds: 0);
-        unawaited(_saveBgState());
+        unawaited(TimerFeedbackService.playCompletionFeedback());
+        return;
       }
     }
+    _lastTickTime = DateTime.now();
+    if (state.isRunning && !(_ticker?.isActive ?? false)) _startTicker();
   }
 }

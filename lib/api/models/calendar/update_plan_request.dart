@@ -1,55 +1,40 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:marquer/api/models/calendar/plan_schedule.dart';
 
-class UpdatePlanTaskRequest {
-  final int? id;
-  final String name;
-  final int sortOrder;
-  final String? startTime;
-  final String? endTime;
+part 'update_plan_request.freezed.dart';
+part 'update_plan_request.g.dart';
 
-  const UpdatePlanTaskRequest({
-    this.id,
-    required this.name,
-    required this.sortOrder,
-    this.startTime,
-    this.endTime,
-  });
+@freezed
+abstract class UpdatePlanTaskRequest with _$UpdatePlanTaskRequest {
+  @JsonSerializable(includeIfNull: false)
+  const factory UpdatePlanTaskRequest({
+    int? id,
+    required String name,
+    @JsonKey(name: 'sort_order') required int sortOrder,
+    @JsonKey(name: 'start_time') String? startTime,
+    @JsonKey(name: 'end_time') String? endTime,
+  }) = _UpdatePlanTaskRequest;
 
-  Map<String, dynamic> toJson() => {
-    if (id != null) 'id': id,
-    'name': name,
-    'sort_order': sortOrder,
-    if (startTime != null) 'start_time': startTime,
-    if (endTime != null) 'end_time': endTime,
-  };
+  factory UpdatePlanTaskRequest.fromJson(Map<String, dynamic> json) =>
+      _$UpdatePlanTaskRequestFromJson(json);
 }
 
-class UpdatePlanRequest {
-  final String name;
-  final PlanSchedule schedule;
-  final String startDate;
-  final String? endDate;
-  final bool? isActive;
-  final String? color;
-  final List<UpdatePlanTaskRequest> tasks;
+@freezed
+abstract class UpdatePlanRequest with _$UpdatePlanRequest {
+  @JsonSerializable(includeIfNull: false, explicitToJson: true)
+  const factory UpdatePlanRequest({
+    required String name,
+    @JsonKey(toJson: _scheduleToJson, fromJson: PlanSchedule.fromJson)
+    required PlanSchedule schedule,
+    @JsonKey(name: 'start_date') required String startDate,
+    @JsonKey(name: 'end_date') String? endDate,
+    @JsonKey(name: 'is_active') bool? isActive,
+    String? color,
+    required List<UpdatePlanTaskRequest> tasks,
+  }) = _UpdatePlanRequest;
 
-  const UpdatePlanRequest({
-    required this.name,
-    required this.schedule,
-    required this.startDate,
-    this.endDate,
-    this.isActive,
-    this.color,
-    required this.tasks,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'schedule': schedule.toJson(),
-    'start_date': startDate,
-    if (endDate != null) 'end_date': endDate,
-    if (isActive != null) 'is_active': isActive,
-    if (color != null) 'color': color,
-    'tasks': tasks.map((t) => t.toJson()).toList(),
-  };
+  factory UpdatePlanRequest.fromJson(Map<String, dynamic> json) =>
+      _$UpdatePlanRequestFromJson(json);
 }
+
+Map<String, dynamic> _scheduleToJson(PlanSchedule s) => s.toJson();

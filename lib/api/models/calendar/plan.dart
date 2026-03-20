@@ -1,62 +1,28 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:marquer/api/models/calendar/plan_schedule.dart';
 import 'package:marquer/api/models/calendar/plan_task.dart';
 
-class Plan {
-  final int id;
-  final String name;
-  final PlanSchedule schedule;
-  final String startDate;
-  final String? endDate;
-  final bool isActive;
-  final String? color;
-  final List<PlanTask> tasks;
-  final String createdAt;
-  final String updatedAt;
+part 'plan.freezed.dart';
+part 'plan.g.dart';
 
-  const Plan({
-    required this.id,
-    required this.name,
-    required this.schedule,
-    required this.startDate,
-    this.endDate,
-    required this.isActive,
-    this.color,
-    required this.tasks,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  factory Plan.fromJson(Map<String, dynamic> json) => Plan(
-    id: json['id'] as int,
-    name: json['name'] as String,
-    schedule: PlanSchedule.fromJson(json['schedule'] as Map<String, dynamic>),
-    startDate: json['start_date'] as String,
-    endDate: json['end_date'] as String?,
-    isActive: json['is_active'] as bool,
-    color: json['color'] as String?,
-    tasks: (json['tasks'] as List).map((t) => PlanTask.fromJson(t as Map<String, dynamic>)).toList(),
-    createdAt: json['created_at'] as String,
-    updatedAt: json['updated_at'] as String,
-  );
-
-  Plan copyWith({
-    String? name,
-    PlanSchedule? schedule,
-    String? startDate,
-    String? endDate,
-    bool? isActive,
+@freezed
+abstract class Plan with _$Plan {
+  @JsonSerializable(explicitToJson: true)
+  const factory Plan({
+    required int id,
+    required String name,
+    @JsonKey(fromJson: PlanSchedule.fromJson, toJson: _scheduleToJson)
+    required PlanSchedule schedule,
+    @JsonKey(name: 'start_date') required String startDate,
+    @JsonKey(name: 'end_date') String? endDate,
+    @JsonKey(name: 'is_active') required bool isActive,
     String? color,
-    List<PlanTask>? tasks,
-  }) => Plan(
-    id: id,
-    name: name ?? this.name,
-    schedule: schedule ?? this.schedule,
-    startDate: startDate ?? this.startDate,
-    endDate: endDate ?? this.endDate,
-    isActive: isActive ?? this.isActive,
-    color: color ?? this.color,
-    tasks: tasks ?? this.tasks,
-    createdAt: createdAt,
-    updatedAt: updatedAt,
-  );
+    required List<PlanTask> tasks,
+    @JsonKey(name: 'created_at') required String createdAt,
+    @JsonKey(name: 'updated_at') required String updatedAt,
+  }) = _Plan;
+
+  factory Plan.fromJson(Map<String, dynamic> json) => _$PlanFromJson(json);
 }
+
+Map<String, dynamic> _scheduleToJson(PlanSchedule schedule) => schedule.toJson();

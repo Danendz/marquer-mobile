@@ -1,33 +1,29 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/study/study_subject.dart';
 import 'package:marquer/api/models/study/upsert_study_subject_request.dart';
 import 'package:marquer/api/services/study_service.dart';
-import 'package:marquer/services/toast_service.dart';
+import 'package:marquer/providers/optimistic_mutation.dart';
 
 final studySubjectsProvider =
     AsyncNotifierProvider<StudySubjectsNotifier, List<StudySubject>>(
       StudySubjectsNotifier.new,
     );
 
-class StudySubjectsNotifier extends AsyncNotifier<List<StudySubject>> {
+class StudySubjectsNotifier extends AsyncNotifier<List<StudySubject>>
+    with OptimisticMutation {
   final _service = StudyService();
 
   @override
   Future<List<StudySubject>> build() => _service.getSubjects();
 
   Future<void> addSubject(String name, String color) async {
-    final current = state.asData?.value ?? [];
-    try {
-      final created = await _service.createSubject(
+    await mutate(
+      action: () => _service.createSubject(
         UpsertStudySubjectRequest(name: name, color: color),
-      );
-      if (!ref.mounted) return;
-      state = AsyncData([...current, created]);
-    } catch (e) {
-      debugPrint(e.toString());
-      ToastService.showError('Unable to create subject');
-    }
+      ),
+      errorMessage: 'Unable to create subject',
+      onSuccess: (latest, created) => [...latest, created],
+    );
   }
 
   Future<void> updateSubject(
@@ -35,42 +31,33 @@ class StudySubjectsNotifier extends AsyncNotifier<List<StudySubject>> {
     String name,
     String color,
   ) async {
-    final current = state.asData?.value ?? [];
+    final current = currentValue ?? [];
     state = AsyncData([
       for (final s in current)
         if (s.id == subject.id) s.copyWith(name: name, color: color) else s,
     ]);
-    try {
-      final updated = await _service.updateSubject(
+    await mutate(
+      action: () => _service.updateSubject(
         subject.id,
         UpsertStudySubjectRequest(name: name, color: color),
-      );
-      if (!ref.mounted) return;
-      state = AsyncData([
-        for (final s in state.asData!.value)
-          if (s.id == subject.id) updated else s,
-      ]);
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData(current);
-      debugPrint(e.toString());
-      ToastService.showError('Unable to update subject');
-    }
+      ),
+      errorMessage: 'Unable to update subject',
+      rollback: () => current,
+      onSuccess: (latest, updated) => [
+        for (final s in latest) if (s.id == subject.id) updated else s,
+      ],
+    );
   }
 
   Future<void> deleteSubject(StudySubject subject) async {
-    final current = state.asData?.value ?? [];
+    final current = currentValue ?? [];
     state = AsyncData([
-      for (final s in current)
-        if (s.id != subject.id) s,
+      for (final s in current) if (s.id != subject.id) s,
     ]);
-    try {
-      await _service.deleteSubject(subject.id);
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData(current);
-      debugPrint(e.toString());
-      ToastService.showError('Unable to delete subject');
-    }
+    await mutate(
+      action: () => _service.deleteSubject(subject.id),
+      errorMessage: 'Unable to delete subject',
+      rollback: () => current,
+    );
   }
 }

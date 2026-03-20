@@ -1,13 +1,16 @@
-class CreateCountdownRequest {
-  final String name;
-  final String targetDate;
-  final String bgImage;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  CreateCountdownRequest({required this.name, required this.targetDate, required this.bgImage});
+part 'create_countdown_request.freezed.dart';
+part 'create_countdown_request.g.dart';
 
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'target_date': targetDate,
-    'bg_image': bgImage,
-  };
+@freezed
+abstract class CreateCountdownRequest with _$CreateCountdownRequest {
+  const factory CreateCountdownRequest({
+    required String name,
+    @JsonKey(name: 'target_date') required String targetDate,
+    @JsonKey(name: 'bg_image') required String bgImage,
+  }) = _CreateCountdownRequest;
+
+  factory CreateCountdownRequest.fromJson(Map<String, dynamic> json) =>
+      _$CreateCountdownRequestFromJson(json);
 }

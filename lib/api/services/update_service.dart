@@ -7,7 +7,7 @@ import '../models/model_parser.dart';
 
 final getIt = GetIt.instance;
 
-final class UpdateService {
+class UpdateService {
   final api = getIt<ApiService>(instanceName: 'api');
 
   Future<CheckLatestResponse> checkLatest(CheckLatestRequest request) async {

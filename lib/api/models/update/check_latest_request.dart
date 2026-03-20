@@ -1,14 +1,15 @@
-﻿class CheckLatestRequest {
-  final String platform;
-  final String channel;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  CheckLatestRequest({
-    required this.platform,
-    required this.channel,
-  });
+part 'check_latest_request.freezed.dart';
+part 'check_latest_request.g.dart';
 
-  Map<String, dynamic> toJson() => {
-    'platform': platform,
-    'channel': channel,
-  };
+@freezed
+abstract class CheckLatestRequest with _$CheckLatestRequest {
+  const factory CheckLatestRequest({
+    required String platform,
+    required String channel,
+  }) = _CheckLatestRequest;
+
+  factory CheckLatestRequest.fromJson(Map<String, dynamic> json) =>
+      _$CheckLatestRequestFromJson(json);
 }

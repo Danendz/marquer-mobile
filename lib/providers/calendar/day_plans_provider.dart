@@ -1,16 +1,16 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/calendar/plan_for_date.dart';
 import 'package:marquer/api/services/calendar_service.dart';
 import 'package:marquer/providers/calendar/calendar_selected_date_provider.dart';
+import 'package:marquer/providers/optimistic_mutation.dart';
 import 'package:marquer/utils/format.dart';
-import 'package:marquer/services/toast_service.dart';
 
 final dayPlansProvider = AsyncNotifierProvider<DayPlansNotifier, List<PlanForDate>>(
   DayPlansNotifier.new,
 );
 
-class DayPlansNotifier extends AsyncNotifier<List<PlanForDate>> {
+class DayPlansNotifier extends AsyncNotifier<List<PlanForDate>>
+    with OptimisticMutation {
   final _service = CalendarService();
 
   @override
@@ -20,7 +20,7 @@ class DayPlansNotifier extends AsyncNotifier<List<PlanForDate>> {
   }
 
   Future<void> toggleTask(int planId, int planTaskId) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     final date = formatDate(ref.read(calendarSelectedDateProvider));
@@ -42,28 +42,10 @@ class DayPlansNotifier extends AsyncNotifier<List<PlanForDate>> {
           plan,
     ]);
 
-    try {
-      final isCompleted = await _service.togglePlanTaskCompletion(planTaskId.toString(), date);
-      if (!ref.mounted) return;
-      state = AsyncData([
-        for (final plan in state.asData!.value)
-          if (plan.id == planId)
-            plan.copyWith(
-              tasks: [
-                for (final task in plan.tasks)
-                  if (task.id == planTaskId)
-                    task.copyWith(isCompleted: isCompleted)
-                  else
-                    task,
-              ],
-            )
-          else
-            plan,
-      ]);
-    } catch (e) {
-      if (!ref.mounted) return;
-      // Rollback
-      state = AsyncData([
+    await mutate(
+      action: () => _service.togglePlanTaskCompletion(planTaskId.toString(), date),
+      errorMessage: 'Unable to update task! Try again later',
+      rollback: () => [
         for (final plan in state.asData?.value ?? current)
           if (plan.id == planId)
             plan.copyWith(
@@ -77,9 +59,22 @@ class DayPlansNotifier extends AsyncNotifier<List<PlanForDate>> {
             )
           else
             plan,
-      ]);
-      debugPrint(e.toString());
-      ToastService.showError('Unable to update task! Try again later');
-    }
+      ],
+      onSuccess: (latest, isCompleted) => [
+        for (final plan in latest)
+          if (plan.id == planId)
+            plan.copyWith(
+              tasks: [
+                for (final task in plan.tasks)
+                  if (task.id == planTaskId)
+                    task.copyWith(isCompleted: isCompleted)
+                  else
+                    task,
+              ],
+            )
+          else
+            plan,
+      ],
+    );
   }
 }

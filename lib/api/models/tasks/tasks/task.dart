@@ -1,60 +1,23 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:marquer/api/models/tasks/tasks/task_status.dart';
 
-class Task {
-  final int id;
-  final String name;
-  final TaskStatus status;
-  final String? date;
-  final String? startTime;
-  final String? endTime;
-  final int? taskCategoryId;
-  final String? color;
-  final String createdAt;
-  final String updatedAt;
+part 'task.freezed.dart';
+part 'task.g.dart';
 
-  Task({
-    required this.id,
-    required this.name,
-    required this.status,
-    this.date,
-    this.startTime,
-    this.endTime,
-    this.taskCategoryId,
-    this.color,
-    required this.createdAt,
-    required this.updatedAt,
-  });
+@freezed
+abstract class Task with _$Task {
+  const factory Task({
+    required int id,
+    required String name,
+    required TaskStatus status,
+    String? date,
+    @JsonKey(name: 'start_time') String? startTime,
+    @JsonKey(name: 'end_time') String? endTime,
+    @JsonKey(name: 'task_category_id') int? taskCategoryId,
+    String? color,
+    @JsonKey(name: 'created_at') required String createdAt,
+    @JsonKey(name: 'updated_at') required String updatedAt,
+  }) = _Task;
 
-  factory Task.fromJson(Map<String, dynamic> json) => Task(
-    id: json['id'] as int,
-    name: json['name'] as String,
-    status: TaskStatus.values.firstWhere(
-      (e) => e.name == json['status'],
-      orElse: () => TaskStatus.draft,
-    ),
-    date: json['date'] as String?,
-    startTime: json['start_time'] as String?,
-    endTime: json['end_time'] as String?,
-    taskCategoryId: json['task_category_id'] as int?,
-    color: json['color'] as String?,
-    createdAt: json['created_at'] as String,
-    updatedAt: json['updated_at'] as String,
-  );
-
-  static const _unset = Object();
-
-  Task copyWith({String? name, TaskStatus? status, Object? date = _unset, Object? startTime = _unset, Object? endTime = _unset, Object? taskCategoryId = _unset, Object? color = _unset}) {
-    return Task(
-      id: id,
-      name: name ?? this.name,
-      status: status ?? this.status,
-      date: identical(date, _unset) ? this.date : date as String?,
-      startTime: identical(startTime, _unset) ? this.startTime : startTime as String?,
-      endTime: identical(endTime, _unset) ? this.endTime : endTime as String?,
-      taskCategoryId: identical(taskCategoryId, _unset) ? this.taskCategoryId : taskCategoryId as int?,
-      color: identical(color, _unset) ? this.color : color as String?,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-    );
-  }
+  factory Task.fromJson(Map<String, dynamic> json) => _$TaskFromJson(json);
 }

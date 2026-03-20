@@ -1,15 +1,18 @@
-class UpdateCountdownRequest {
-  final String? name;
-  final String? targetDate;
-  final bool? isPinned;
-  final String? bgImage;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  UpdateCountdownRequest({this.name, this.targetDate, this.isPinned, this.bgImage});
+part 'update_countdown_request.freezed.dart';
+part 'update_countdown_request.g.dart';
 
-  Map<String, dynamic> toJson() => {
-    if (name != null) 'name': name,
-    if (targetDate != null) 'target_date': targetDate,
-    if (isPinned != null) 'is_pinned': isPinned,
-    if (bgImage != null) 'bg_image': bgImage,
-  };
+@freezed
+abstract class UpdateCountdownRequest with _$UpdateCountdownRequest {
+  @JsonSerializable(includeIfNull: false)
+  const factory UpdateCountdownRequest({
+    String? name,
+    @JsonKey(name: 'target_date') String? targetDate,
+    @JsonKey(name: 'is_pinned') bool? isPinned,
+    @JsonKey(name: 'bg_image') String? bgImage,
+  }) = _UpdateCountdownRequest;
+
+  factory UpdateCountdownRequest.fromJson(Map<String, dynamic> json) =>
+      _$UpdateCountdownRequestFromJson(json);
 }

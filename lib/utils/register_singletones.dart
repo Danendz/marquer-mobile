@@ -1,35 +1,37 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
 import 'package:marquer/api/api.dart';
-import 'package:marquer/stores/auth_store.dart';
-import 'package:marquer/stores/user_store.dart';
 
 final getIt = GetIt.instance;
 
-void registerStores() {
-  final userStore = UserStore();
-  final authStore = AuthStore();
-
-  getIt.registerSingleton<UserStore>(userStore);
-  getIt.registerSingleton<AuthStore>(authStore);
-}
+/// Callbacks that connect API services to the auth provider.
+/// Set these in main() before registering singletons.
+late String? Function() authGetToken;
+late Future<void> Function(String token) authSetToken;
+late Future<void> Function() authLogout;
 
 void registerApi() {
-  final auth = getIt<AuthStore>();
-
   getIt.registerLazySingleton<ApiService>(
-        () => ApiService(baseUrl: dotenv.get('AUTH_API_URL'), auth: auth),
+    () => ApiService(
+      baseUrl: dotenv.get('AUTH_API_URL'),
+      getToken: authGetToken,
+      setToken: authSetToken,
+      logout: authLogout,
+    ),
     instanceName: 'authApi',
   );
   getIt.registerLazySingleton<ApiService>(
-        () => ApiService(baseUrl: dotenv.get('MARQUER_API_URL'), auth: auth),
+    () => ApiService(
+      baseUrl: dotenv.get('MARQUER_API_URL'),
+      getToken: authGetToken,
+      setToken: authSetToken,
+      logout: authLogout,
+    ),
     instanceName: 'api',
   );
 }
 
 GetIt registerSingletons() {
-  registerStores();
   registerApi();
-
   return getIt;
 }

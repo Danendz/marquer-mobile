@@ -1,44 +1,17 @@
-class UserStudySettings {
-  final int defaultWorkMinutes;
-  final int defaultShortBreakMinutes;
-  final int defaultLongBreakMinutes;
-  final int defaultCycles;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  UserStudySettings({
-    required this.defaultWorkMinutes,
-    required this.defaultShortBreakMinutes,
-    required this.defaultLongBreakMinutes,
-    required this.defaultCycles,
-  });
+part 'user_study_settings.freezed.dart';
+part 'user_study_settings.g.dart';
+
+@freezed
+abstract class UserStudySettings with _$UserStudySettings {
+  const factory UserStudySettings({
+    @JsonKey(name: 'default_work_minutes') @Default(25) int defaultWorkMinutes,
+    @JsonKey(name: 'default_short_break_minutes') @Default(5) int defaultShortBreakMinutes,
+    @JsonKey(name: 'default_long_break_minutes') @Default(15) int defaultLongBreakMinutes,
+    @JsonKey(name: 'default_cycles') @Default(4) int defaultCycles,
+  }) = _UserStudySettings;
 
   factory UserStudySettings.fromJson(Map<String, dynamic> json) =>
-      UserStudySettings(
-        defaultWorkMinutes: json['default_work_minutes'] as int? ?? 25,
-        defaultShortBreakMinutes:
-            json['default_short_break_minutes'] as int? ?? 5,
-        defaultLongBreakMinutes:
-            json['default_long_break_minutes'] as int? ?? 15,
-        defaultCycles: json['default_cycles'] as int? ?? 4,
-      );
-
-  Map<String, dynamic> toJson() => {
-    'default_work_minutes': defaultWorkMinutes,
-    'default_short_break_minutes': defaultShortBreakMinutes,
-    'default_long_break_minutes': defaultLongBreakMinutes,
-    'default_cycles': defaultCycles,
-  };
-
-  UserStudySettings copyWith({
-    int? defaultWorkMinutes,
-    int? defaultShortBreakMinutes,
-    int? defaultLongBreakMinutes,
-    int? defaultCycles,
-  }) => UserStudySettings(
-    defaultWorkMinutes: defaultWorkMinutes ?? this.defaultWorkMinutes,
-    defaultShortBreakMinutes:
-        defaultShortBreakMinutes ?? this.defaultShortBreakMinutes,
-    defaultLongBreakMinutes:
-        defaultLongBreakMinutes ?? this.defaultLongBreakMinutes,
-    defaultCycles: defaultCycles ?? this.defaultCycles,
-  );
+      _$UserStudySettingsFromJson(json);
 }

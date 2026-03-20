@@ -9,7 +9,7 @@ import '../models/model_parser.dart';
 
 final getIt = GetIt.instance;
 
-final class AuthService {
+class AuthService {
   final api = getIt<ApiService>(instanceName: 'authApi');
 
   Future<AuthResponse> login(LoginRequest data) async {

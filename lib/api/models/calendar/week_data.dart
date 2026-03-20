@@ -1,74 +1,37 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:marquer/api/models/calendar/countdown.dart';
 import 'package:marquer/api/models/tasks/tasks/task.dart';
 
-class WeekPlanTask {
-  final int id;
-  final String name;
-  final int sortOrder;
-  final String? startTime;
-  final String? endTime;
-  final bool isCompleted;
-  final int planId;
-  final String planName;
-  final String? planColor;
+part 'week_data.freezed.dart';
+part 'week_data.g.dart';
 
-  const WeekPlanTask({
-    required this.id,
-    required this.name,
-    required this.sortOrder,
-    this.startTime,
-    this.endTime,
-    required this.isCompleted,
-    required this.planId,
-    required this.planName,
-    this.planColor,
-  });
+@freezed
+abstract class WeekPlanTask with _$WeekPlanTask {
+  const factory WeekPlanTask({
+    required int id,
+    required String name,
+    @JsonKey(name: 'sort_order') required int sortOrder,
+    @JsonKey(name: 'start_time') String? startTime,
+    @JsonKey(name: 'end_time') String? endTime,
+    @JsonKey(name: 'is_completed') required bool isCompleted,
+    @JsonKey(name: 'plan_id') required int planId,
+    @JsonKey(name: 'plan_name') required String planName,
+    @JsonKey(name: 'plan_color') String? planColor,
+  }) = _WeekPlanTask;
 
-  factory WeekPlanTask.fromJson(Map<String, dynamic> json) => WeekPlanTask(
-    id: json['id'] as int,
-    name: json['name'] as String,
-    sortOrder: json['sort_order'] as int,
-    startTime: json['start_time'] as String?,
-    endTime: json['end_time'] as String?,
-    isCompleted: json['is_completed'] as bool,
-    planId: json['plan_id'] as int,
-    planName: json['plan_name'] as String,
-    planColor: json['plan_color'] as String?,
-  );
-
-  WeekPlanTask copyWith({bool? isCompleted, String? planName}) => WeekPlanTask(
-    id: id,
-    name: name,
-    sortOrder: sortOrder,
-    startTime: startTime,
-    endTime: endTime,
-    isCompleted: isCompleted ?? this.isCompleted,
-    planId: planId,
-    planName: planName ?? this.planName,
-    planColor: planColor,
-  );
+  factory WeekPlanTask.fromJson(Map<String, dynamic> json) =>
+      _$WeekPlanTaskFromJson(json);
 }
 
-class WeekData {
-  final Map<String, List<Task>> tasks;
-  final Map<String, List<WeekPlanTask>> planTasks;
-  final Map<String, List<Countdown>> countdowns;
-
-  const WeekData({
-    required this.tasks,
-    required this.planTasks,
-    required this.countdowns,
-  });
-
-  WeekData copyWith({
-    Map<String, List<Task>>? tasks,
-    Map<String, List<WeekPlanTask>>? planTasks,
-    Map<String, List<Countdown>>? countdowns,
-  }) => WeekData(
-    tasks: tasks ?? this.tasks,
-    planTasks: planTasks ?? this.planTasks,
-    countdowns: countdowns ?? this.countdowns,
-  );
+/// WeekData has complex nested Map structure that doesn't map cleanly to
+/// json_serializable, so we keep manual fromJson/copyWith via Freezed.
+@freezed
+abstract class WeekData with _$WeekData {
+  const factory WeekData({
+    required Map<String, List<Task>> tasks,
+    @JsonKey(name: 'plan_tasks') required Map<String, List<WeekPlanTask>> planTasks,
+    required Map<String, List<Countdown>> countdowns,
+  }) = _WeekData;
 
   factory WeekData.fromJson(Map<String, dynamic> json) {
     final tasksRaw = json['tasks'];

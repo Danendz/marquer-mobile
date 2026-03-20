@@ -1,25 +1,20 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:marquer/api/models/notes/create_note_request.dart';
-import 'package:marquer/api/models/notes/update_note_request.dart';
+import 'package:marquer/api/models/notes/note.dart';
 import 'package:marquer/api/services/notes_service.dart';
 import 'package:marquer/components/note_editor/note_editor_bottom_toolbar.dart';
 import 'package:marquer/components/note_editor/note_editor_top_toolbar.dart';
 
 class NoteEditor extends StatefulWidget {
-  final QuillController? controller;
-  final bool showToolbar;
   final String? id;
-  final Document? editDoc;
+  final Future<void> Function(String jsonContent)? onSave;
 
   const NoteEditor({
     super.key,
-    this.controller,
-    this.showToolbar = true,
     this.id,
-    this.editDoc
+    this.onSave,
   });
 
   @override
@@ -35,22 +30,18 @@ class _NoteEditorState extends State<NoteEditor> {
   @override
   void initState() {
     super.initState();
+    _controller = QuillController.basic();
     if (widget.id != null) {
-     _getNote(widget.id as String);
+      _getNote(widget.id!);
     }
-    _controller = widget.controller ?? QuillController.basic();
   }
 
   @override
   void dispose() {
-    if (widget.controller == null) {
-      _controller.dispose();
-    }
+    _controller.dispose();
     _focusNode.dispose();
     super.dispose();
   }
-
-  QuillController get controller => _controller;
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +52,7 @@ class _NoteEditorState extends State<NoteEditor> {
     return Column(
       children: [
         NoteEditorTopToolbar(
-          controller: controller,
+          controller: _controller,
           loading: _loading,
           onSave: _submit,
         ),
@@ -75,14 +66,14 @@ class _NoteEditorState extends State<NoteEditor> {
               bottom: 15,
             ),
             child: QuillEditor.basic(
-              controller: controller,
+              controller: _controller,
               focusNode: _focusNode,
               config: QuillEditorConfig(
                 customStyles: DefaultStyles(
                   paragraph: DefaultTextBlockStyle(
                     TextStyle(
-                      fontSize: 18, // default font size
-                      height: 1.4, // line height multiplier
+                      fontSize: 18,
+                      height: 1.4,
                       color: cs.onSurface,
                     ),
                     const HorizontalSpacing(0, 0),
@@ -96,7 +87,7 @@ class _NoteEditorState extends State<NoteEditor> {
           ),
         ),
         const Divider(height: 1),
-        NoteEditorBottomToolbar(controller: controller),
+        NoteEditorBottomToolbar(controller: _controller),
       ],
     );
   }
@@ -104,12 +95,9 @@ class _NoteEditorState extends State<NoteEditor> {
   Future<void> _submit() async {
     setState(() => _loading = true);
     try {
-      final notesService = NotesService();
-      final String jsonString = jsonEncode(controller.document.toDelta().toJson());
-      if (widget.id != null) {
-        await notesService.updateNote(widget.id as String, UpdateNoteRequest(content: jsonString));
-      } else {
-        await notesService.createNote(CreateNoteRequest(content: jsonString, title: 'new note'));
+      final jsonContent = jsonEncode(_controller.document.toDelta().toJson());
+      if (widget.onSave != null) {
+        await widget.onSave!(jsonContent);
       }
     } finally {
       setState(() => _loading = false);
@@ -120,14 +108,17 @@ class _NoteEditorState extends State<NoteEditor> {
     setState(() => _loadingNote = true);
     try {
       final notesService = NotesService();
-      final note = await notesService.getNote(id);
+      final Note note = await notesService.getNote(id);
       final json = jsonDecode(note.content);
 
       if (!mounted) return;
 
       setState(() {
         _controller.document = Document.fromJson(json);
-        _controller.updateSelection(const TextSelection.collapsed(offset: 0), ChangeSource.local);
+        _controller.updateSelection(
+          const TextSelection.collapsed(offset: 0),
+          ChangeSource.local,
+        );
       });
     } finally {
       setState(() => _loadingNote = false);

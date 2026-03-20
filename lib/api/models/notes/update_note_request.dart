@@ -1,11 +1,14 @@
-﻿class UpdateNoteRequest {
-  final String content;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  UpdateNoteRequest({
-    required this.content,
-  });
+part 'update_note_request.freezed.dart';
+part 'update_note_request.g.dart';
 
-  Map<String, dynamic> toJson() => {
-    'content': content,
-  };
+@freezed
+abstract class UpdateNoteRequest with _$UpdateNoteRequest {
+  const factory UpdateNoteRequest({
+    required String content,
+  }) = _UpdateNoteRequest;
+
+  factory UpdateNoteRequest.fromJson(Map<String, dynamic> json) =>
+      _$UpdateNoteRequestFromJson(json);
 }

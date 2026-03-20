@@ -1,11 +1,17 @@
-class CalendarOverview {
-  final Set<String> datesWithIncomplete;
-  final Set<String> datesWithPlans;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  CalendarOverview({required this.datesWithIncomplete, required this.datesWithPlans});
+part 'calendar_overview.freezed.dart';
+part 'calendar_overview.g.dart';
 
-  factory CalendarOverview.fromJson(Map<String, dynamic> json) => CalendarOverview(
-    datesWithIncomplete: Set<String>.from(json['tasks'] as List),
-    datesWithPlans: Set<String>.from(json['plan_tasks'] as List),
-  );
+@freezed
+abstract class CalendarOverview with _$CalendarOverview {
+  const factory CalendarOverview({
+    @JsonKey(name: 'tasks', fromJson: _setFromJson) required Set<String> datesWithIncomplete,
+    @JsonKey(name: 'plan_tasks', fromJson: _setFromJson) required Set<String> datesWithPlans,
+  }) = _CalendarOverview;
+
+  factory CalendarOverview.fromJson(Map<String, dynamic> json) =>
+      _$CalendarOverviewFromJson(json);
 }
+
+Set<String> _setFromJson(dynamic json) => Set<String>.from(json as List);

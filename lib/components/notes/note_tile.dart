@@ -1,24 +1,23 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/notes/list_note.dart';
-import 'package:marquer/api/services/notes_service.dart';
+import 'package:marquer/providers/notes/notes_provider.dart';
 
-class NoteTile extends StatefulWidget {
+class NoteTile extends ConsumerStatefulWidget {
   final ListNote note;
-  final Function(int id) onDeleted;
 
-  const NoteTile({super.key, required this.note, required this.onDeleted});
+  const NoteTile({super.key, required this.note});
 
   @override
-  State<NoteTile> createState() => _NoteTileState();
+  ConsumerState<NoteTile> createState() => _NoteTileState();
 }
 
-class _NoteTileState extends State<NoteTile> {
+class _NoteTileState extends ConsumerState<NoteTile> {
   ListNote get note => widget.note;
   Offset _tapPosition = Offset.zero;
   bool _loading = false;
-  final notesService = NotesService();
 
   Future<void> onLongPress(BuildContext context) async {
     await HapticFeedback.mediumImpact();
@@ -26,7 +25,6 @@ class _NoteTileState extends State<NoteTile> {
 
     final result = await showMenu(
       context: context,
-      // Use the captured _tapPosition
       position: RelativeRect.fromLTRB(
         _tapPosition.dx,
         _tapPosition.dy,
@@ -58,16 +56,11 @@ class _NoteTileState extends State<NoteTile> {
     if (result == 'edit') {
       context.go('/notes/${note.id}');
     } else if (result == 'delete') {
+      setState(() => _loading = true);
       try {
-        setState(() {
-          _loading = true;
-        });
-        await notesService.deleteNote(note.id.toString());
-        widget.onDeleted(note.id);
+        await ref.read(notesProvider.notifier).delete(note.id);
       } finally {
-        setState(() {
-          _loading = false;
-        });
+        if (mounted) setState(() => _loading = false);
       }
     }
   }
@@ -92,8 +85,8 @@ class _NoteTileState extends State<NoteTile> {
               onTapDown: (details) {
                 _tapPosition = details.globalPosition;
               },
-              onTap: () => _loading ? null : context.go('/notes/${note.id}'),
-              onLongPress: () async => _loading ? null : await onLongPress(context),
+              onTap: _loading ? null : () => context.go('/notes/${note.id}'),
+              onLongPress: _loading ? null : () => onLongPress(context),
               child: Center(
                 child: _loading ? const CircularProgressIndicator() : Icon(Icons.description, size: 40, color: Colors.grey),
               ),
