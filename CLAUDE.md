@@ -8,6 +8,20 @@
 - Always show what will be committed/pushed and ask before proceeding.
 - Never push directly to main — all changes must go through a branch and PR.
 
+## Code Generation (Freezed + json_serializable)
+
+Generated files (`*.freezed.dart`, `*.g.dart`) are gitignored. After modifying any `@freezed` model in `lib/api/models/`, regenerate with:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+CI runs this automatically before analyze/test/build. Locally, use `watch` mode during development:
+
+```bash
+dart run build_runner watch --delete-conflicting-outputs
+```
+
 ## PR Title Convention
 
 All PRs must follow: `<type>: <description>`

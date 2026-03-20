@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="FileNestingSettings">
+    <option name="rules">
+      <list>
+        <NestingRule owner=".dart" nested=".freezed.dart;.g.dart" />
+      </list>
+    </option>
+  </component>
+</project>

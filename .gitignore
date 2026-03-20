@@ -12,11 +12,14 @@
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
+# IntelliJ related (user-specific files)
 *.iml
 *.ipr
 *.iws
-.idea/
+.idea/workspace.xml
+.idea/caches/
+.idea/libraries/
+.idea/deviceManager.xml
 
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
@@ -45,6 +48,10 @@ app.*.map.json
 /android/app/release
 
 .env
+
+# Freezed + json_serializable generated files
+*.freezed.dart
+*.g.dart
 
 # Git worktrees
 .worktrees/

@@ -41,6 +41,34 @@ flutter pub get
 flutter run
 ```
 
+## Code Generation
+
+This project uses [Freezed](https://pub.dev/packages/freezed) + [json_serializable](https://pub.dev/packages/json_serializable) for immutable models and JSON serialization. Generated files (`*.freezed.dart`, `*.g.dart`) are gitignored.
+
+After cloning or pulling changes to model files, run:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+For continuous regeneration during development:
+
+```bash
+dart run build_runner watch --delete-conflicting-outputs
+```
+
+Model source files live in `lib/api/models/` organized by domain (auth, calendar, notes, study, tasks, update).
+
+### IDE file nesting
+
+Generated files can be visually nested under their source files:
+
+**VS Code** — already configured in `.vscode/settings.json` (committed).
+
+**Android Studio** — Settings → Editor → File Nesting → Add rule:
+- Parent file suffix: `.dart`
+- Child file suffix: `.freezed.dart; .g.dart`
+
 ## Environment Variables
 
 Create a `.env` file in the project root:
