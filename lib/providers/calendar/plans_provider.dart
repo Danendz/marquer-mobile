@@ -66,7 +66,12 @@ class PlansNotifier extends AsyncNotifier<List<Plan>>
       errorMessage: 'Unable to delete plan! Try again later',
       rollback: () {
         final latest = state.asData?.value ?? current;
-        return latest.any((p) => p.id == plan.id) ? latest : [plan, ...latest];
+        if (latest.any((p) => p.id == plan.id)) return latest;
+        final originalIdx = current.indexWhere((p) => p.id == plan.id);
+        if (originalIdx < 0) return [plan, ...latest];
+        final copy = [...latest];
+        copy.insert(originalIdx.clamp(0, copy.length), plan);
+        return copy;
       },
       onSuccess: (latest, _) {
         _invalidateCalendar();
