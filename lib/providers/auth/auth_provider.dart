@@ -61,6 +61,7 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> setToken(String token) async {
+    state = AuthState(status: AuthStatus.authenticated, token: token);
     await _storage.write(key: _tokenKey, value: token);
     try {
       final user = await _authService.me();
@@ -70,7 +71,7 @@ class AuthNotifier extends Notifier<AuthState> {
         user: user,
       );
     } catch (e) {
-      state = AuthState(status: AuthStatus.authenticated, token: token);
+      // Keep token even if user fetch fails
     }
   }
 
