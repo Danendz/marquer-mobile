@@ -13,7 +13,7 @@ import 'package:marquer/api/models/model_parser.dart';
 
 final getIt = GetIt.instance;
 
-final class CalendarService {
+class CalendarService {
   final api = getIt<ApiService>(instanceName: 'api');
 
   Future<CalendarOverview> getOverview(String from, String to) async {

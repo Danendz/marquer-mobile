@@ -9,7 +9,7 @@ import '../models/notes/note.dart';
 
 final getIt = GetIt.instance;
 
-final class NotesService {
+class NotesService {
   final api = getIt<ApiService>(instanceName: 'api');
 
   Future<List<ListNote>> getNotes() async {

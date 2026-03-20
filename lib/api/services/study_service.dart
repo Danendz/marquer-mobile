@@ -11,7 +11,7 @@ import 'package:marquer/api/models/study/user_study_settings.dart';
 
 final getIt = GetIt.instance;
 
-final class StudyService {
+class StudyService {
   final api = getIt<ApiService>(instanceName: 'api');
 
   // Subjects
