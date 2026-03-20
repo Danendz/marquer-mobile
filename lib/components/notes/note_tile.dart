@@ -85,8 +85,8 @@ class _NoteTileState extends ConsumerState<NoteTile> {
               onTapDown: (details) {
                 _tapPosition = details.globalPosition;
               },
-              onTap: () => _loading ? null : context.go('/notes/${note.id}'),
-              onLongPress: () async => _loading ? null : await onLongPress(context),
+              onTap: _loading ? null : () => context.go('/notes/${note.id}'),
+              onLongPress: _loading ? null : () => onLongPress(context),
               child: Center(
                 child: _loading ? const CircularProgressIndicator() : Icon(Icons.description, size: 40, color: Colors.grey),
               ),

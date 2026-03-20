@@ -104,10 +104,7 @@ class CountdownsNotifier extends AsyncNotifier<List<Countdown>>
         UpdateCountdownRequest(isPinned: newPinned),
       ),
       errorMessage: 'Unable to update countdown! Try again later',
-      rollback: () => [
-        for (final c in state.asData?.value ?? current)
-          if (c.id == countdown.id) countdown else c,
-      ],
+      rollback: () => current,
       onSuccess: (latest, updated) => [
         for (final c in latest) if (c.id == countdown.id) updated else c,
       ],

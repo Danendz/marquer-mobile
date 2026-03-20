@@ -60,7 +60,6 @@ class PlansNotifier extends AsyncNotifier<List<Plan>>
     if (current == null) return;
 
     state = AsyncData([for (final p in current) if (p.id != plan.id) p]);
-    _invalidateCalendar();
 
     await mutate(
       action: () => _service.deletePlan(plan.id.toString()),
@@ -68,6 +67,10 @@ class PlansNotifier extends AsyncNotifier<List<Plan>>
       rollback: () {
         final latest = state.asData?.value ?? current;
         return latest.any((p) => p.id == plan.id) ? latest : [plan, ...latest];
+      },
+      onSuccess: (latest, _) {
+        _invalidateCalendar();
+        return latest;
       },
     );
   }
