@@ -20,11 +20,7 @@ class NotesPage extends ConsumerWidget {
         child: notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Error: $e')),
-          data: (notes) => NotesTiles(
-            notes: notes,
-            onDeleted: (id) =>
-                ref.read(notesProvider.notifier).delete(id),
-          ),
+          data: (notes) => NotesTiles(notes: notes),
         ),
       ),
       floatingActionButton: FloatingActionButton(

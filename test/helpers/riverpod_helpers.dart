@@ -31,3 +31,22 @@ Future<void> pumpWithProviders(
     ),
   );
 }
+
+/// Pumps a widget wrapped in [Scaffold] → [ProviderScope] → [MaterialApp].
+/// Useful when the widget under test is not itself a Scaffold but needs one
+/// (e.g. components that show SnackBars or use Scaffold.of).
+Future<void> pumpScaffoldWithProviders(
+  WidgetTester tester,
+  Widget child, {
+  List<Override> overrides = const [],
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: overrides,
+      child: MaterialApp(
+        scaffoldMessengerKey: ToastService.messengerKey,
+        home: Scaffold(body: child),
+      ),
+    ),
+  );
+}

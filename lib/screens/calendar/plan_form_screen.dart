@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/calendar/create_plan_request.dart';
 import 'package:marquer/api/models/calendar/plan.dart';
-import 'package:marquer/api/models/calendar/plan_schedule.dart';
 import 'package:marquer/api/models/calendar/update_plan_request.dart';
 import 'package:marquer/components/calendar/add_event_sheet.dart';
 import 'package:marquer/components/shared/color_picker_row.dart';
+import 'package:marquer/providers/calendar/plan_form_notifier.dart';
 import 'package:marquer/providers/calendar/plans_provider.dart';
 import 'package:marquer/screens/calendar/widgets/plan_date_range_section.dart';
 import 'package:marquer/screens/calendar/widgets/plan_event_list.dart';
@@ -23,17 +23,6 @@ class PlanFormScreen extends ConsumerStatefulWidget {
 
 class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
   late final TextEditingController _nameController;
-  late ScheduleType _scheduleType;
-  late List<int> _weeklyDays;
-  late int _intervalEvery;
-  late List<int> _monthlyDates;
-  late int _monthlyWeekdayOccurrence;
-  late int _monthlyWeekdayDay;
-  late DateTime _startDate;
-  DateTime? _endDate;
-  bool _hasEndDate = false;
-  late List<PlanTaskItem> _tasks;
-  String? _color;
 
   bool get _isEditing => widget.plan != null;
 
@@ -41,72 +30,24 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
   void initState() {
     super.initState();
     final plan = widget.plan;
-
     _nameController = TextEditingController(text: plan?.name ?? '');
-    _startDate = plan != null ? DateTime.parse(plan.startDate) : DateTime.now();
-    _endDate = plan?.endDate != null ? DateTime.parse(plan!.endDate!) : null;
-    _hasEndDate = _endDate != null;
-    _color = plan?.color;
 
-    if (plan != null) {
-      _tasks = plan.tasks
-          .map((t) => PlanTaskItem(id: t.id, name: t.name, sortOrder: t.sortOrder, startTime: t.startTime, endTime: t.endTime))
-          .toList();
-      _initScheduleFromPlan(plan.schedule);
-    } else {
-      _scheduleType = ScheduleType.daily;
-      _weeklyDays = [DateTime.now().weekday - 1]; // 0-indexed Mon
-      _intervalEvery = 1;
-      _monthlyDates = [DateTime.now().day];
-      _monthlyWeekdayOccurrence = 1;
-      _monthlyWeekdayDay = DateTime.now().weekday - 1;
-      _tasks = [];
-    }
-  }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (plan != null) {
+        ref.read(planFormProvider.notifier).loadFromPlan(plan);
+      } else {
+        ref.invalidate(planFormProvider);
+        // Set sensible defaults for a new plan
+        final notifier = ref.read(planFormProvider.notifier);
+        notifier.setWeeklyDays([DateTime.now().weekday - 1]);
+        notifier.setMonthlyDates([DateTime.now().day]);
+        notifier.setMonthlyWeekdayDay(DateTime.now().weekday - 1);
+      }
+    });
 
-  void _initScheduleFromPlan(PlanSchedule schedule) {
-    switch (schedule) {
-      case DailySchedule():
-        _scheduleType = ScheduleType.daily;
-        _weeklyDays = [0];
-        _intervalEvery = 1;
-        _monthlyDates = [1];
-        _monthlyWeekdayOccurrence = 1;
-        _monthlyWeekdayDay = 0;
-        break;
-      case WeeklySchedule(:final days):
-        _scheduleType = ScheduleType.weekly;
-        _weeklyDays = List.from(days);
-        _intervalEvery = 1;
-        _monthlyDates = [1];
-        _monthlyWeekdayOccurrence = 1;
-        _monthlyWeekdayDay = 0;
-        break;
-      case IntervalSchedule(:final every):
-        _scheduleType = ScheduleType.interval;
-        _weeklyDays = [0];
-        _intervalEvery = every;
-        _monthlyDates = [1];
-        _monthlyWeekdayOccurrence = 1;
-        _monthlyWeekdayDay = 0;
-        break;
-      case MonthlyDatesSchedule(:final days):
-        _scheduleType = ScheduleType.monthlyDates;
-        _weeklyDays = [0];
-        _intervalEvery = 1;
-        _monthlyDates = List.from(days);
-        _monthlyWeekdayOccurrence = 1;
-        _monthlyWeekdayDay = 0;
-        break;
-      case MonthlyWeekdaySchedule(:final week, :final weekday):
-        _scheduleType = ScheduleType.monthlyWeekday;
-        _weeklyDays = [0];
-        _intervalEvery = 1;
-        _monthlyDates = [1];
-        _monthlyWeekdayOccurrence = week;
-        _monthlyWeekdayDay = weekday;
-        break;
-    }
+    _nameController.addListener(() {
+      ref.read(planFormProvider.notifier).setName(_nameController.text);
+    });
   }
 
   @override
@@ -115,89 +56,76 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
     super.dispose();
   }
 
-  PlanSchedule _buildSchedule() {
-    return switch (_scheduleType) {
-      ScheduleType.daily => const DailySchedule(),
-      ScheduleType.weekly => WeeklySchedule(days: List.from(_weeklyDays)),
-      ScheduleType.interval => IntervalSchedule(every: _intervalEvery),
-      ScheduleType.monthlyDates => MonthlyDatesSchedule(days: List.from(_monthlyDates)),
-      ScheduleType.monthlyWeekday => MonthlyWeekdaySchedule(
-        week: _monthlyWeekdayOccurrence,
-        weekday: _monthlyWeekdayDay,
-      ),
-    };
-  }
-
   Future<void> _pickDate({required bool isStart}) async {
+    final formState = ref.read(planFormProvider);
     final picked = await showDatePicker(
       context: context,
-      initialDate: isStart ? _startDate : (_endDate ?? _startDate.add(const Duration(days: 30))),
-      firstDate: isStart ? DateTime(2020) : _startDate,
+      initialDate: isStart
+          ? formState.startDate
+          : (formState.endDate ??
+              formState.startDate.add(const Duration(days: 30))),
+      firstDate: isStart ? DateTime(2020) : formState.startDate,
       lastDate: DateTime(2100),
     );
     if (picked == null) return;
-    setState(() {
-      if (isStart) {
-        _startDate = picked;
-        if (_endDate != null && _endDate!.isBefore(_startDate)) {
-          _endDate = null;
-          _hasEndDate = false;
-        }
-      } else {
-        _endDate = picked;
-      }
-    });
+    final notifier = ref.read(planFormProvider.notifier);
+    if (isStart) {
+      notifier.setStartDate(picked);
+    } else {
+      notifier.setEndDate(picked);
+    }
   }
 
   Future<void> _save() async {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) return;
+    final formState = ref.read(planFormProvider);
+    if (formState.validate() != null) return;
 
-    final validTasks = _tasks.where((t) => t.name.trim().isNotEmpty).toList();
-    if (validTasks.isEmpty) return;
-
-    // Sort by time: no startTime first, then ascending
-    validTasks.sort((a, b) {
-      if (a.startTime == null && b.startTime == null) return 0;
-      if (a.startTime == null) return -1;
-      if (b.startTime == null) return 1;
-      return a.startTime!.compareTo(b.startTime!);
-    });
-
-    final schedule = _buildSchedule();
-    final startDate = formatDate(_startDate);
-    final endDate = _hasEndDate && _endDate != null ? formatDate(_endDate!) : null;
+    final validTasks = formState.validTasks;
+    final schedule = formState.buildSchedule();
+    final startDate = formatDate(formState.startDate);
+    final endDate = formState.hasEndDate && formState.endDate != null
+        ? formatDate(formState.endDate!)
+        : null;
 
     bool success;
     if (_isEditing) {
       final request = UpdatePlanRequest(
-        name: name,
+        name: formState.name.trim(),
         schedule: schedule,
         startDate: startDate,
         endDate: endDate,
-        color: _color,
-        tasks: validTasks.asMap().entries.map((e) => UpdatePlanTaskRequest(
-          id: e.value.id,
-          name: e.value.name.trim(),
-          sortOrder: e.key,
-          startTime: e.value.startTime,
-          endTime: e.value.endTime,
-        )).toList(),
+        color: formState.color,
+        tasks: validTasks
+            .asMap()
+            .entries
+            .map((e) => UpdatePlanTaskRequest(
+                  id: e.value.id,
+                  name: e.value.name.trim(),
+                  sortOrder: e.key,
+                  startTime: e.value.startTime,
+                  endTime: e.value.endTime,
+                ))
+            .toList(),
       );
-      success = await ref.read(plansProvider.notifier).edit(widget.plan!, request);
+      success =
+          await ref.read(plansProvider.notifier).edit(widget.plan!, request);
     } else {
       final request = CreatePlanRequest(
-        name: name,
+        name: formState.name.trim(),
         schedule: schedule,
         startDate: startDate,
         endDate: endDate,
-        color: _color,
-        tasks: validTasks.asMap().entries.map((e) => CreatePlanTaskRequest(
-          name: e.value.name.trim(),
-          sortOrder: e.key,
-          startTime: e.value.startTime,
-          endTime: e.value.endTime,
-        )).toList(),
+        color: formState.color,
+        tasks: validTasks
+            .asMap()
+            .entries
+            .map((e) => CreatePlanTaskRequest(
+                  name: e.value.name.trim(),
+                  sortOrder: e.key,
+                  startTime: e.value.startTime,
+                  endTime: e.value.endTime,
+                ))
+            .toList(),
       );
       success = await ref.read(plansProvider.notifier).add(request);
     }
@@ -207,7 +135,8 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
       Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to save plan. Please try again.')),
+        const SnackBar(
+            content: Text('Failed to save plan. Please try again.')),
       );
     }
   }
@@ -219,19 +148,21 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => AddEventSheet(
         onSave: (name, startTime, endTime, date, color) {
-          setState(() => _tasks.add(PlanTaskItem(
-            name: name,
-            sortOrder: _tasks.length,
-            startTime: startTime,
-            endTime: endTime,
-          )));
+          final formState = ref.read(planFormProvider);
+          ref.read(planFormProvider.notifier).addTask(PlanTaskItem(
+                name: name,
+                sortOrder: formState.tasks.length,
+                startTime: startTime,
+                endTime: endTime,
+              ));
         },
       ),
     );
   }
 
   void _editEvent(int index) {
-    final task = _tasks[index];
+    final formState = ref.read(planFormProvider);
+    final task = formState.tasks[index];
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -241,11 +172,16 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
         initialStartTime: task.startTimeOfDay,
         initialEndTime: task.endTimeOfDay,
         onSave: (name, startTime, endTime, date, color) {
-          setState(() {
-            _tasks[index].name = name;
-            _tasks[index].startTime = startTime;
-            _tasks[index].endTime = endTime;
-          });
+          ref.read(planFormProvider.notifier).updateTask(
+                index,
+                PlanTaskItem(
+                  id: task.id,
+                  name: name,
+                  sortOrder: task.sortOrder,
+                  startTime: startTime,
+                  endTime: endTime,
+                ),
+              );
         },
       ),
     );
@@ -253,6 +189,9 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final formState = ref.watch(planFormProvider);
+    final notifier = ref.read(planFormProvider.notifier);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Plan' : 'New Plan'),
@@ -277,46 +216,47 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
           ),
           const SizedBox(height: 12),
           ColorPickerRow(
-            selectedColor: _color,
-            onColorChanged: (c) => setState(() => _color = c),
+            selectedColor: formState.color,
+            onColorChanged: (c) => notifier.setColor(c),
           ),
           const SizedBox(height: 20),
 
           // Schedule
           ScheduleConfigSection(
-            type: _scheduleType,
-            weeklyDays: _weeklyDays,
-            intervalEvery: _intervalEvery,
-            monthlyDates: _monthlyDates,
-            monthlyWeekdayOccurrence: _monthlyWeekdayOccurrence,
-            monthlyWeekdayDay: _monthlyWeekdayDay,
-            onTypeChanged: (t) => setState(() => _scheduleType = t),
-            onWeeklyDaysChanged: (d) => setState(() => _weeklyDays = d),
-            onIntervalChanged: (v) => setState(() => _intervalEvery = v),
-            onMonthlyDatesChanged: (d) => setState(() => _monthlyDates = d),
-            onMonthlyWeekdayOccurrenceChanged: (v) => setState(() => _monthlyWeekdayOccurrence = v),
-            onMonthlyWeekdayDayChanged: (v) => setState(() => _monthlyWeekdayDay = v),
+            type: formState.scheduleType,
+            weeklyDays: formState.weeklyDays,
+            intervalEvery: formState.intervalEvery,
+            monthlyDates: formState.monthlyDates,
+            monthlyWeekdayOccurrence: formState.monthlyWeekdayOccurrence,
+            monthlyWeekdayDay: formState.monthlyWeekdayDay,
+            onTypeChanged: (t) => notifier.setScheduleType(t),
+            onWeeklyDaysChanged: (d) => notifier.setWeeklyDays(d),
+            onIntervalChanged: (v) => notifier.setIntervalEvery(v),
+            onMonthlyDatesChanged: (d) => notifier.setMonthlyDates(d),
+            onMonthlyWeekdayOccurrenceChanged: (v) =>
+                notifier.setMonthlyWeekdayOccurrence(v),
+            onMonthlyWeekdayDayChanged: (v) =>
+                notifier.setMonthlyWeekdayDay(v),
           ),
           const SizedBox(height: 20),
 
           // Dates
           PlanDateRangeSection(
-            startDate: _startDate,
-            hasEndDate: _hasEndDate,
-            endDate: _endDate,
+            startDate: formState.startDate,
+            hasEndDate: formState.hasEndDate,
+            endDate: formState.endDate,
             onPickStart: () => _pickDate(isStart: true),
             onPickEnd: () => _pickDate(isStart: false),
-            onEndDateToggle: (v) => setState(() {
-              _hasEndDate = v;
-              if (!v) _endDate = null;
-            }),
+            onEndDateToggle: (v) => notifier.setHasEndDate(v),
           ),
           const SizedBox(height: 20),
 
           // Events
           Row(
             children: [
-              Expanded(child: Text('Events', style: Theme.of(context).textTheme.titleSmall)),
+              Expanded(
+                  child: Text('Events',
+                      style: Theme.of(context).textTheme.titleSmall)),
               TextButton.icon(
                 onPressed: _addEvent,
                 icon: const Icon(Icons.add, size: 18),
@@ -326,9 +266,9 @@ class _PlanFormScreenState extends ConsumerState<PlanFormScreen> {
           ),
           const SizedBox(height: 8),
           PlanEventList(
-            tasks: _tasks,
+            tasks: formState.tasks,
             onEdit: _editEvent,
-            onDelete: (i) => setState(() => _tasks.removeAt(i)),
+            onDelete: (i) => notifier.removeTask(i),
           ),
           const SizedBox(height: 80),
         ],
