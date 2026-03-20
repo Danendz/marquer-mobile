@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/tasks/tasks/create_task_request.dart';
 import 'package:marquer/api/models/tasks/tasks/get_tasks_request.dart';
@@ -6,16 +5,17 @@ import 'package:marquer/api/models/tasks/tasks/task.dart';
 import 'package:marquer/api/models/tasks/tasks/task_status.dart';
 import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
 import 'package:marquer/api/services/tasks_service.dart';
+import 'package:marquer/providers/optimistic_mutation.dart';
 import 'package:marquer/providers/tasks/task_filter.dart';
 import 'package:marquer/providers/tasks/task_filter_provider.dart';
-import 'package:marquer/services/toast_service.dart';
 
 final tasksProvider =
     AsyncNotifierProvider<TasksAsyncNotifier, List<Task>>(
       TasksAsyncNotifier.new,
     );
 
-class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
+class TasksAsyncNotifier extends AsyncNotifier<List<Task>>
+    with OptimisticMutation {
   final _service = TasksService();
 
   @override
@@ -33,7 +33,7 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
   }
 
   Future<void> addTask(String name, [int? categoryId]) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     final optimistic = Task(
@@ -47,28 +47,24 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
 
     state = AsyncData([optimistic, ...current]);
 
-    try {
-      final created = await _service.createTask(
+    await mutate(
+      action: () => _service.createTask(
         CreateTaskRequest(name: name, taskCategoryId: categoryId),
-      );
-      if (!ref.mounted) return;
-      state = AsyncData([
-        for (final t in state.asData!.value)
-          if (t.id == optimistic.id) created else t,
-      ]);
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData([
+      ),
+      errorMessage: 'Unable to add task! Try again later',
+      rollback: () => [
         for (final t in state.asData?.value ?? current)
           if (t.id != optimistic.id) t,
-      ]);
-      debugPrint(e.toString());
-      ToastService.showError("Unable to add task! Try again later");
-    }
+      ],
+      onSuccess: (latest, created) => [
+        for (final t in latest)
+          if (t.id == optimistic.id) created else t,
+      ],
+    );
   }
 
   Future<void> toggleTaskStatus(Task task) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     final newStatus = task.status == TaskStatus.done
@@ -80,24 +76,21 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
         if (t.id == task.id) t.copyWith(status: newStatus) else t,
     ]);
 
-    try {
-      await _service.updateTask(
+    await mutate(
+      action: () => _service.updateTask(
         task.id.toString(),
         UpdateTaskRequest(status: newStatus),
-      );
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData([
+      ),
+      errorMessage: 'Unable to update task! Try again later',
+      rollback: () => [
         for (final t in state.asData?.value ?? current)
           if (t.id == task.id) task else t,
-      ]);
-      debugPrint(e.toString());
-      ToastService.showError("Unable to update task! Try again later");
-    }
+      ],
+    );
   }
 
   Future<void> renameTask(Task task, String newName) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     state = AsyncData([
@@ -105,24 +98,21 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
         if (t.id == task.id) t.copyWith(name: newName) else t,
     ]);
 
-    try {
-      await _service.updateTask(
+    await mutate(
+      action: () => _service.updateTask(
         task.id.toString(),
         UpdateTaskRequest(name: newName),
-      );
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData([
+      ),
+      errorMessage: 'Unable to rename task! Try again later',
+      rollback: () => [
         for (final t in state.asData?.value ?? current)
           if (t.id == task.id) task else t,
-      ]);
-      debugPrint(e.toString());
-      ToastService.showError("Unable to rename task! Try again later");
-    }
+      ],
+    );
   }
 
   Future<void> updateTask(Task task, UpdateTaskRequest request, Task optimisticTask) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     state = AsyncData([
@@ -130,82 +120,73 @@ class TasksAsyncNotifier extends AsyncNotifier<List<Task>> {
         if (t.id == task.id) optimisticTask else t,
     ]);
 
-    try {
-      await _service.updateTask(task.id.toString(), request);
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData([
+    await mutate(
+      action: () => _service.updateTask(task.id.toString(), request),
+      errorMessage: 'Unable to update task! Try again later',
+      rollback: () => [
         for (final t in state.asData?.value ?? current)
           if (t.id == task.id) task else t,
-      ]);
-      debugPrint(e.toString());
-      ToastService.showError("Unable to update task! Try again later");
-    }
+      ],
+    );
   }
 
   Future<void> deleteTask(Task task) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     state = AsyncData([
-      for (final t in current)
-        if (t.id != task.id) t,
+      for (final t in current) if (t.id != task.id) t,
     ]);
 
-    try {
-      await _service.updateTask(
+    await mutate(
+      action: () => _service.updateTask(
         task.id.toString(),
         UpdateTaskRequest(status: TaskStatus.cancelled),
-      );
-    } catch (e) {
-      if (!ref.mounted) return;
-      final latest = state.asData?.value ?? current;
-      state = AsyncData(latest.any((t) => t.id == task.id) ? latest : [task, ...latest]);
-      debugPrint(e.toString());
-      ToastService.showError("Unable to delete task! Try again later");
-    }
+      ),
+      errorMessage: 'Unable to delete task! Try again later',
+      rollback: () {
+        final latest = state.asData?.value ?? current;
+        return latest.any((t) => t.id == task.id) ? latest : [task, ...latest];
+      },
+    );
   }
 
   Future<void> permanentlyDelete(Task task) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     state = AsyncData([
-      for (final t in current)
-        if (t.id != task.id) t,
+      for (final t in current) if (t.id != task.id) t,
     ]);
 
-    try {
-      await _service.deleteTask(task.id.toString());
-    } catch (e) {
-      if (!ref.mounted) return;
-      final latest = state.asData?.value ?? current;
-      state = AsyncData(latest.any((t) => t.id == task.id) ? latest : [task, ...latest]);
-      debugPrint(e.toString());
-      ToastService.showError("Unable to delete task! Try again later");
-    }
+    await mutate(
+      action: () => _service.deleteTask(task.id.toString()),
+      errorMessage: 'Unable to delete task! Try again later',
+      rollback: () {
+        final latest = state.asData?.value ?? current;
+        return latest.any((t) => t.id == task.id) ? latest : [task, ...latest];
+      },
+    );
   }
 
   Future<void> restoreTask(Task task) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     state = AsyncData([
-      for (final t in current)
-        if (t.id != task.id) t,
+      for (final t in current) if (t.id != task.id) t,
     ]);
 
-    try {
-      await _service.updateTask(
+    await mutate(
+      action: () => _service.updateTask(
         task.id.toString(),
         UpdateTaskRequest(status: TaskStatus.draft),
-      );
-    } catch (e) {
-      if (!ref.mounted) return;
-      final latest = state.asData?.value ?? current;
-      state = AsyncData(latest.any((t) => t.id == task.id) ? latest : [task, ...latest]);
-      debugPrint(e.toString());
-      ToastService.showError("Unable to restore task! Try again later");
-    }
+      ),
+      errorMessage: 'Unable to restore task! Try again later',
+      rollback: () {
+        final latest = state.asData?.value ?? current;
+        return latest.any((t) => t.id == task.id) ? latest : [task, ...latest];
+      },
+    );
   }
 }

@@ -1,18 +1,18 @@
-﻿import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/api/models/tasks/categories/task_category.dart';
 import 'package:marquer/api/models/tasks/categories/upsert_task_category_request.dart';
 import 'package:marquer/api/models/tasks/folders/task_folder.dart';
 import 'package:marquer/api/models/tasks/folders/upsert_task_folder_request.dart';
 import 'package:marquer/api/services/tasks_service.dart';
-import 'package:marquer/services/toast_service.dart';
+import 'package:marquer/providers/optimistic_mutation.dart';
 
 final taskFoldersProvider =
     AsyncNotifierProvider<TaskFoldersAsyncNotifier, List<TaskFolder>>(
       TaskFoldersAsyncNotifier.new,
     );
 
-class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
+class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>>
+    with OptimisticMutation {
   final _service = TasksService();
 
   @override
@@ -21,7 +21,7 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
   }
 
   void _deleteCategory(int folderId, TaskCategory category) {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     bool isNew = category.tempNewUUID != null;
@@ -44,7 +44,7 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
   }
 
   void _updateCategory(int folderId, TaskCategory category) {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     bool isNew = category.tempNewUUID != null;
@@ -69,7 +69,7 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
   }
 
   void addCategory(int folderId, TaskCategory category) {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     state = AsyncData([
@@ -82,27 +82,25 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
   }
 
   Future<void> updateCategory(int folderId, TaskCategory category) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     _updateCategory(folderId, category);
 
     if (category.id == null) return;
 
-    try {
-      await _service.updateCategory(
+    await mutate(
+      action: () => _service.updateCategory(
         (category.id as int).toString(),
         UpsertTaskCategoryRequest(
           name: category.name,
           taskFolderId: folderId,
           color: category.color,
         ),
-      );
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData(current);
-      ToastService.showError("Unable to update category! Try again later");
-    }
+      ),
+      errorMessage: 'Unable to update category! Try again later',
+      rollback: () => current,
+    );
   }
 
   void _replaceCategory(
@@ -110,7 +108,7 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
     TaskCategory oldCategory,
     TaskCategory category,
   ) {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     bool isNew = oldCategory.tempNewUUID != null;
@@ -135,62 +133,54 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
   }
 
   Future<void> saveNewCategory(int folderId, TaskCategory category) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
-    try {
-      final insertedCategory = await _service.createCategory(
+    await mutate(
+      action: () => _service.createCategory(
         UpsertTaskCategoryRequest(
           name: category.name,
           color: category.color,
           taskFolderId: folderId,
         ),
-      );
-
-      _replaceCategory(folderId, category, insertedCategory);
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData(current);
-      debugPrint(e.toString());
-      ToastService.showError("Unable to save category! Try again later");
-    }
+      ),
+      errorMessage: 'Unable to save category! Try again later',
+      rollback: () => current,
+      onSuccess: (latest, inserted) {
+        _replaceCategory(folderId, category, inserted);
+        return state.asData!.value;
+      },
+    );
   }
 
   Future<void> deleteCategory(int folderId, TaskCategory category) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     _deleteCategory(folderId, category);
 
     if (category.id == null) return;
 
-    try {
-      await _service.deleteCategory((category.id as int).toString());
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData(current);
-      debugPrint(e.toString());
-      ToastService.showError("Unable to delete category! Try again later");
-    }
+    await mutate(
+      action: () => _service.deleteCategory((category.id as int).toString()),
+      errorMessage: 'Unable to delete category! Try again later',
+      rollback: () => current,
+    );
   }
 
   Future<void> createFolder(String name) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
-    try {
-      final folder = await _service.createFolder(
-        UpsertTaskFolderRequest(name: name),
-      );
-      state = AsyncData([...current, folder]);
-    } catch (e) {
-      debugPrint(e.toString());
-      ToastService.showError("Unable to create folder! Try again later");
-    }
+    await mutate(
+      action: () => _service.createFolder(UpsertTaskFolderRequest(name: name)),
+      errorMessage: 'Unable to create folder! Try again later',
+      onSuccess: (latest, folder) => [...current, folder],
+    );
   }
 
   Future<void> updateFolder(int folderId, String name) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     state = AsyncData([
@@ -198,35 +188,28 @@ class TaskFoldersAsyncNotifier extends AsyncNotifier<List<TaskFolder>> {
         if (f.id == folderId) f.copyWith(name: name) else f,
     ]);
 
-    try {
-      await _service.updateFolder(
+    await mutate(
+      action: () => _service.updateFolder(
         folderId.toString(),
         UpsertTaskFolderRequest(name: name),
-      );
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData(current);
-      debugPrint(e.toString());
-      ToastService.showError("Unable to update folder! Try again later");
-    }
+      ),
+      errorMessage: 'Unable to update folder! Try again later',
+      rollback: () => current,
+    );
   }
 
   Future<void> deleteFolder(int folderId) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     state = AsyncData([
-      for (final f in current)
-        if (f.id != folderId) f,
+      for (final f in current) if (f.id != folderId) f,
     ]);
 
-    try {
-      await _service.deleteFolder(folderId.toString());
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData(current);
-      debugPrint(e.toString());
-      ToastService.showError("Unable to delete folder! Try again later");
-    }
+    await mutate(
+      action: () => _service.deleteFolder(folderId.toString()),
+      errorMessage: 'Unable to delete folder! Try again later',
+      rollback: () => current,
+    );
   }
 }

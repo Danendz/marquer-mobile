@@ -7,6 +7,7 @@ import 'package:marquer/api/models/tasks/tasks/task_status.dart';
 import 'package:marquer/api/models/tasks/tasks/update_task_request.dart';
 import 'package:marquer/api/services/tasks_service.dart';
 import 'package:marquer/providers/calendar/calendar_selected_date_provider.dart';
+import 'package:marquer/providers/optimistic_mutation.dart';
 import 'package:marquer/utils/format.dart';
 import 'package:marquer/services/toast_service.dart';
 
@@ -15,7 +16,8 @@ final calendarDayEventsProvider =
       CalendarDayEventsNotifier.new,
     );
 
-class CalendarDayEventsNotifier extends AsyncNotifier<List<Task>> {
+class CalendarDayEventsNotifier extends AsyncNotifier<List<Task>>
+    with OptimisticMutation {
   final _service = TasksService();
 
   @override
@@ -25,7 +27,7 @@ class CalendarDayEventsNotifier extends AsyncNotifier<List<Task>> {
   }
 
   Future<void> addEvent(String name, {String? startTime, String? endTime, String? date, String? color}) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     final taskDate = date ?? formatDate(ref.read(calendarSelectedDateProvider));
 
     if (current == null) {
@@ -57,114 +59,92 @@ class CalendarDayEventsNotifier extends AsyncNotifier<List<Task>> {
 
     state = AsyncData([optimistic, ...current]);
 
-    try {
-      final created = await _service.createTask(
+    await mutate(
+      action: () => _service.createTask(
         CreateTaskRequest(name: name, date: taskDate, startTime: startTime, endTime: endTime, color: color),
-      );
-      if (!ref.mounted) return;
-      state = AsyncData([
-        for (final t in state.asData!.value)
-          if (t.id == optimistic.id) created else t,
-      ]);
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData([...?state.asData?.value]..removeWhere((t) => t.id == optimistic.id));
-      debugPrint(e.toString());
-      ToastService.showError('Unable to add event! Try again later');
-    }
+      ),
+      errorMessage: 'Unable to add event! Try again later',
+      rollback: () => [...?state.asData?.value]..removeWhere((t) => t.id == optimistic.id),
+      onSuccess: (latest, created) => [
+        for (final t in latest) if (t.id == optimistic.id) created else t,
+      ],
+    );
   }
 
   Future<void> toggleEvent(Task task) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     final newStatus = task.status == TaskStatus.done ? TaskStatus.draft : TaskStatus.done;
-    final optimistic = task.copyWith(status: newStatus);
     state = AsyncData([
-      for (final t in current) if (t.id == task.id) optimistic else t,
+      for (final t in current) if (t.id == task.id) task.copyWith(status: newStatus) else t,
     ]);
 
-    try {
-      final updated = await _service.updateTask(
-        task.id.toString(),
-        UpdateTaskRequest(status: newStatus),
-      );
-      if (!ref.mounted) return;
-      state = AsyncData([
-        for (final t in state.asData!.value) if (t.id == task.id) updated else t,
-      ]);
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData([
+    await mutate(
+      action: () => _service.updateTask(task.id.toString(), UpdateTaskRequest(status: newStatus)),
+      errorMessage: 'Unable to update event! Try again later',
+      rollback: () => [
         for (final t in state.asData?.value ?? current) if (t.id == task.id) task else t,
-      ]);
-      debugPrint(e.toString());
-      ToastService.showError('Unable to update event! Try again later');
-    }
+      ],
+      onSuccess: (latest, updated) => [
+        for (final t in latest) if (t.id == task.id) updated else t,
+      ],
+    );
   }
 
   Future<void> deleteEvent(Task task) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     state = AsyncData([for (final t in current) if (t.id != task.id) t]);
 
-    try {
-      await _service.deleteTask(task.id.toString());
-    } catch (e) {
-      if (!ref.mounted) return;
-      final latest = state.asData?.value ?? current;
-      state = AsyncData(latest.any((t) => t.id == task.id) ? latest : [task, ...latest]);
-      debugPrint(e.toString());
-      ToastService.showError('Unable to delete event! Try again later');
-    }
+    await mutate(
+      action: () => _service.deleteTask(task.id.toString()),
+      errorMessage: 'Unable to delete event! Try again later',
+      rollback: () {
+        final latest = state.asData?.value ?? current;
+        return latest.any((t) => t.id == task.id) ? latest : [task, ...latest];
+      },
+    );
   }
 
   Future<void> updateEvent(Task task, UpdateTaskRequest request, Task optimistic) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     state = AsyncData([
       for (final t in current) if (t.id == task.id) optimistic else t,
     ]);
 
-    try {
-      final updated = await _service.updateTask(task.id.toString(), request);
-      if (!ref.mounted) return;
-      state = AsyncData([
-        for (final t in state.asData!.value) if (t.id == task.id) updated else t,
-      ]);
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData([
+    await mutate(
+      action: () => _service.updateTask(task.id.toString(), request),
+      errorMessage: 'Unable to update event! Try again later',
+      rollback: () => [
         for (final t in state.asData?.value ?? current) if (t.id == task.id) task else t,
-      ]);
-      debugPrint(e.toString());
-      ToastService.showError('Unable to update event! Try again later');
-    }
+      ],
+      onSuccess: (latest, updated) => [
+        for (final t in latest) if (t.id == task.id) updated else t,
+      ],
+    );
   }
 
   Future<void> renameEvent(Task task, String newName) async {
-    final current = state.asData?.value;
+    final current = currentValue;
     if (current == null) return;
 
     state = AsyncData([
       for (final t in current) if (t.id == task.id) t.copyWith(name: newName) else t,
     ]);
 
-    try {
-      final updated = await _service.updateTask(task.id.toString(), UpdateTaskRequest(name: newName));
-      if (!ref.mounted) return;
-      state = AsyncData([
-        for (final t in state.asData!.value) if (t.id == task.id) updated else t,
-      ]);
-    } catch (e) {
-      if (!ref.mounted) return;
-      state = AsyncData([
+    await mutate(
+      action: () => _service.updateTask(task.id.toString(), UpdateTaskRequest(name: newName)),
+      errorMessage: 'Unable to rename event! Try again later',
+      rollback: () => [
         for (final t in state.asData?.value ?? current) if (t.id == task.id) task else t,
-      ]);
-      debugPrint(e.toString());
-      ToastService.showError('Unable to rename event! Try again later');
-    }
+      ],
+      onSuccess: (latest, updated) => [
+        for (final t in latest) if (t.id == task.id) updated else t,
+      ],
+    );
   }
 }
