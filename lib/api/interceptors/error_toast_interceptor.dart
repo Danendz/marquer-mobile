@@ -1,13 +1,12 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:marquer/stores/auth_store.dart';
 
 import '../../services/toast_service.dart';
 
 class ErrorToastInterceptor extends Interceptor {
-  ErrorToastInterceptor(this._auth);
+  ErrorToastInterceptor({required this.logout});
 
-  final AuthStore _auth;
+  final Future<void> Function() logout;
 
   @override
   Future<void> onError(
@@ -34,8 +33,7 @@ class ErrorToastInterceptor extends Interceptor {
     }
 
     if (e.response?.statusCode == 401) {
-      await _auth.logout();
-
+      await logout();
       return 'Authorization required.';
     }
 

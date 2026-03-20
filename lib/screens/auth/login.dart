@@ -1,24 +1,21 @@
-﻿import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marquer/api/models/auth/login_request.dart';
 import 'package:marquer/api/services/auth_service.dart';
-import 'package:marquer/stores/auth_store.dart';
+import 'package:marquer/providers/auth/auth_provider.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final AuthStore _auth = GetIt.instance<AuthStore>();
-
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-
   bool _loading = false;
 
   @override
@@ -48,9 +45,7 @@ class _LoginPageState extends State<LoginPage> {
                       border: OutlineInputBorder(),
                     ),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'Email is required';
-                      }
+                      if (v == null || v.trim().isEmpty) return 'Email is required';
                       if (!v.contains('@')) return 'Invalid email';
                       return null;
                     },
@@ -102,7 +97,7 @@ class _LoginPageState extends State<LoginPage> {
       final data = await authService.login(
         LoginRequest(email: email, password: password),
       );
-      await _auth.setToken(data.token);
+      await ref.read(authProvider.notifier).setToken(data.token);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

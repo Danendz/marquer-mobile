@@ -16,8 +16,8 @@ import '../../helpers/test_setup.dart';
 void main() {
   late MockApiService mockApi;
 
-  setUp(() {
-    final env = setUpTestEnvironment();
+  setUp(() async {
+    final env = await setUpTestEnvironment();
     mockApi = env.api;
   });
 

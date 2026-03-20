@@ -1,7 +1,4 @@
-import 'package:mocktail/mocktail.dart';
-import 'package:marquer/stores/auth_store.dart';
-import 'package:marquer/stores/user_store.dart';
-
-class MockAuthStore extends Mock implements AuthStore {}
-
-class MockUserStore extends Mock implements UserStore {}
+// Auth and user state are now managed via Riverpod (authProvider).
+// No ChangeNotifier stores to mock — use ProviderContainer overrides instead.
+//
+// See test/helpers/riverpod_helpers.dart for createTestContainer().
