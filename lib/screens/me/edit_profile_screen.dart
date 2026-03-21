@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:marquer/api/models/profile/upsert_profile_request.dart';
+import 'package:marquer/api/services/auth_service.dart';
 import 'package:marquer/providers/auth/auth_provider.dart';
 import 'package:marquer/providers/profile/profile_provider.dart';
 import 'package:marquer/services/toast_service.dart';
@@ -18,6 +19,7 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
   late TextEditingController _usernameController;
   late TextEditingController _statusController;
   late TextEditingController _locationController;
@@ -30,6 +32,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   void initState() {
     super.initState();
     final profile = ref.read(profileProvider).asData?.value;
+    final authUser = ref.read(authProvider).user;
+    _nameController = TextEditingController(text: authUser?.name ?? '');
     _usernameController = TextEditingController(text: profile?.username ?? '');
     _statusController = TextEditingController(text: profile?.status ?? '');
     _locationController = TextEditingController(text: profile?.location ?? '');
@@ -38,6 +42,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _usernameController.dispose();
     _statusController.dispose();
     _locationController.dispose();
@@ -59,6 +64,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           _locationController.text.isEmpty ? null : _locationController.text,
       bio: _bioController.text.isEmpty ? null : _bioController.text,
     );
+
+    // Update name in Auth if changed
+    final currentName = ref.read(authProvider).user?.name ?? '';
+    if (_nameController.text.isNotEmpty && _nameController.text != currentName) {
+      try {
+        await AuthService().updateName(_nameController.text);
+        // Refresh auth state with new name
+        await ref.read(authProvider.notifier).setToken(
+          ref.read(authProvider).token!,
+        );
+      } catch (_) {}
+    }
 
     await ref.read(profileProvider.notifier).updateProfile(request);
 
@@ -92,7 +109,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final userName = ref.watch(authProvider).user?.name ?? '';
     final profile = ref.watch(profileProvider).asData?.value;
 
     return Scaffold(
@@ -169,33 +185,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            // Name display (read-only, editing name requires Auth service)
-            Text(
-              'Name',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                userName,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Name can be changed from Auth settings',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-              ),
+            _buildField(
+              label: 'Name',
+              controller: _nameController,
+              hint: 'Your name',
+              maxLength: 255,
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Name is required';
+                return null;
+              },
             ),
             const SizedBox(height: 20),
             _buildField(
