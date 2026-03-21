@@ -35,6 +35,11 @@ class MeScreen extends ConsumerWidget {
               child: Column(
                 children: [
                   _SectionTile(
+                    icon: Icons.people_outlined,
+                    label: 'Friends',
+                    onTap: () => context.push('/me/friends'),
+                  ),
+                  _SectionTile(
                     icon: Icons.collections_bookmark_outlined,
                     label: 'Collections',
                     enabled: false,
