@@ -43,8 +43,7 @@ class MeScreen extends ConsumerWidget {
                   _SectionTile(
                     icon: Icons.emoji_events_outlined,
                     label: 'Achievements',
-                    enabled: false,
-                    onTap: () {},
+                    onTap: () => context.push('/me/achievements'),
                   ),
                   _SectionTile(
                     icon: Icons.settings_outlined,

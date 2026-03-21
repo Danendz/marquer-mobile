@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 import 'package:marquer/api/api.dart';
+import 'package:marquer/api/models/profile/achievement.dart';
 import 'package:marquer/api/models/profile/upload_url_response.dart';
 import 'package:marquer/api/models/profile/user_profile.dart';
 import 'package:marquer/api/models/profile/user_settings.dart';
@@ -50,6 +51,16 @@ class ProfileService {
       body: {'content_type': contentType},
       fromJsonT: (json) =>
           ModelParser.objectFromJson(json, UploadUrlResponse.fromJson),
+    );
+
+    return resp.data;
+  }
+
+  Future<List<Achievement>> getAchievements() async {
+    final resp = await api.get<List<Achievement>>(
+      '/achievements',
+      fromJsonT: (json) =>
+          ModelParser.listFromJson(json, Achievement.fromJson),
     );
 
     return resp.data;

@@ -16,6 +16,7 @@ import 'package:marquer/screens/calendar/calendar_screen.dart';
 import 'package:marquer/screens/calendar/plan_form_screen.dart';
 import 'package:marquer/screens/me/me_screen.dart';
 import 'package:marquer/screens/me/edit_profile_screen.dart';
+import 'package:marquer/screens/me/achievements_screen.dart';
 import 'package:marquer/screens/me/laboratory_screen.dart';
 import 'package:marquer/screens/me/settings_screen.dart';
 import 'package:marquer/screens/study/active_timer_screen.dart';
@@ -95,6 +96,10 @@ GoRouter createRouter(WidgetRef ref, ChangeNotifier refreshNotifier) {
       GoRoute(
         path: '/me/settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/me/achievements',
+        builder: (context, state) => const AchievementsScreen(),
       ),
       GoRoute(
         path: '/me/laboratory',
