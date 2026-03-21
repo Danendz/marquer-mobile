@@ -16,6 +16,7 @@ import 'package:marquer/screens/calendar/calendar_screen.dart';
 import 'package:marquer/screens/calendar/plan_form_screen.dart';
 import 'package:marquer/screens/me/me_screen.dart';
 import 'package:marquer/screens/me/edit_profile_screen.dart';
+import 'package:marquer/screens/me/settings_screen.dart';
 import 'package:marquer/screens/study/active_timer_screen.dart';
 import 'package:marquer/screens/study/manage_subjects_screen.dart';
 import 'package:marquer/screens/study/study_stats_screen.dart';
@@ -89,6 +90,10 @@ GoRouter createRouter(WidgetRef ref, ChangeNotifier refreshNotifier) {
       GoRoute(
         path: '/me/edit-profile',
         builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/me/settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) {

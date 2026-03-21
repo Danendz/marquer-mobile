@@ -49,8 +49,7 @@ class MeScreen extends ConsumerWidget {
                   _SectionTile(
                     icon: Icons.settings_outlined,
                     label: 'Settings',
-                    enabled: false,
-                    onTap: () {},
+                    onTap: () => context.push('/me/settings'),
                   ),
                   _SectionTile(
                     icon: Icons.science_outlined,
