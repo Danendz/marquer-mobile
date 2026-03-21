@@ -52,4 +52,14 @@ class AuthService {
 
     return resp.data;
   }
+
+  Future<User> updateName(String name) async {
+    final resp = await api.put<User>(
+      '/me',
+      body: {'name': name},
+      fromJsonT: (json) => ModelParser.objectFromJson(json, User.fromJson),
+    );
+
+    return resp.data;
+  }
 }

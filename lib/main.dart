@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marquer/components/managers/global_manager.dart';
 import 'package:marquer/config/theme.dart';
 import 'package:marquer/providers/auth/auth_provider.dart';
+import 'package:marquer/providers/profile/theme_provider.dart';
 import 'package:marquer/router/router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
@@ -86,7 +87,7 @@ class _MyAppState extends ConsumerState<MyApp> {
       title: 'Marquer',
       theme: buildTheme(themeLight),
       darkTheme: buildTheme(themeDark),
-      themeMode: ThemeMode.light,
+      themeMode: ref.watch(themeProvider),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

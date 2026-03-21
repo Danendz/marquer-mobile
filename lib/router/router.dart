@@ -14,6 +14,12 @@ import 'package:marquer/screens/notes/notes_edit.dart';
 import 'package:marquer/screens/notes/notes_add.dart';
 import 'package:marquer/screens/calendar/calendar_screen.dart';
 import 'package:marquer/screens/calendar/plan_form_screen.dart';
+import 'package:marquer/screens/me/me_screen.dart';
+import 'package:marquer/screens/me/edit_profile_screen.dart';
+import 'package:marquer/screens/me/achievements_screen.dart';
+import 'package:marquer/screens/me/friends_screen.dart';
+import 'package:marquer/screens/me/laboratory_screen.dart';
+import 'package:marquer/screens/me/settings_screen.dart';
 import 'package:marquer/screens/study/active_timer_screen.dart';
 import 'package:marquer/screens/study/manage_subjects_screen.dart';
 import 'package:marquer/screens/study/study_stats_screen.dart';
@@ -84,6 +90,26 @@ GoRouter createRouter(WidgetRef ref, ChangeNotifier refreshNotifier) {
           return PlanFormScreen(plan: plan);
         },
       ),
+      GoRoute(
+        path: '/me/edit-profile',
+        builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/me/settings',
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/me/friends',
+        builder: (context, state) => const FriendsScreen(),
+      ),
+      GoRoute(
+        path: '/me/achievements',
+        builder: (context, state) => const AchievementsScreen(),
+      ),
+      GoRoute(
+        path: '/me/laboratory',
+        builder: (context, state) => const LaboratoryScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) {
           return AppLayout(path: state.uri.toString(), child: child);
@@ -104,6 +130,7 @@ GoRouter createRouter(WidgetRef ref, ChangeNotifier refreshNotifier) {
           GoRoute(path: '/study/stats', builder: (context, state) => const StudyStatsScreen()),
           GoRoute(path: '/study/subjects', builder: (context, state) => const ManageSubjectsScreen()),
           GoRoute(path: '/calendar', builder: (context, state) => const CalendarScreen()),
+          GoRoute(path: '/me', builder: (context, state) => const MeScreen()),
         ],
       ),
     ],
