@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:marquer/api/models/profile/upsert_profile_request.dart';
 import 'package:marquer/providers/auth/auth_provider.dart';
 import 'package:marquer/providers/profile/profile_provider.dart';
@@ -20,6 +23,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late TextEditingController _locationController;
   late TextEditingController _bioController;
   bool _saving = false;
+  bool _uploadingAvatar = false;
+  bool _uploadingCover = false;
 
   @override
   void initState() {
@@ -63,11 +68,32 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     context.pop();
   }
 
+  Future<void> _pickAvatar() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery);
+    if (image == null || !mounted) return;
+
+    setState(() => _uploadingAvatar = true);
+    await ref.read(profileProvider.notifier).uploadAvatar(File(image.path));
+    if (mounted) setState(() => _uploadingAvatar = false);
+  }
+
+  Future<void> _pickCover() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery);
+    if (image == null || !mounted) return;
+
+    setState(() => _uploadingCover = true);
+    await ref.read(profileProvider.notifier).uploadCover(File(image.path));
+    if (mounted) setState(() => _uploadingCover = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final userName = ref.watch(authProvider).user?.name ?? '';
+    final profile = ref.watch(profileProvider).asData?.value;
 
     return Scaffold(
       appBar: AppBar(
@@ -90,6 +116,59 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Avatar
+            Center(
+              child: GestureDetector(
+                onTap: _uploadingAvatar ? null : _pickAvatar,
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 48,
+                      backgroundColor: cs.surfaceContainer,
+                      backgroundImage: profile?.avatarUrl != null
+                          ? NetworkImage(profile!.avatarUrl!)
+                          : null,
+                      child: profile?.avatarUrl == null
+                          ? Icon(Icons.person, size: 48,
+                              color: cs.onSurfaceVariant)
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: cs.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: _uploadingAvatar
+                            ? const SizedBox(
+                                width: 16, height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : Icon(Icons.camera_alt, size: 16,
+                                color: cs.onPrimary),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Cover change button
+            Center(
+              child: TextButton.icon(
+                onPressed: _uploadingCover ? null : _pickCover,
+                icon: _uploadingCover
+                    ? const SizedBox(
+                        width: 14, height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.image_outlined, size: 18),
+                label: const Text('Change Cover'),
+              ),
+            ),
+            const SizedBox(height: 12),
             // Name display (read-only, editing name requires Auth service)
             Text(
               'Name',

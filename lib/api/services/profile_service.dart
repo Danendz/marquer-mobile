@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 import 'package:marquer/api/api.dart';
+import 'package:marquer/api/models/profile/upload_url_response.dart';
 import 'package:marquer/api/models/profile/user_profile.dart';
 import 'package:marquer/api/models/profile/upsert_profile_request.dart';
 
@@ -26,6 +27,28 @@ class ProfileService {
       body: request,
       fromJsonT: (json) =>
           ModelParser.objectFromJson(json, UserProfile.fromJson),
+    );
+
+    return resp.data;
+  }
+
+  Future<UploadUrlResponse> getAvatarUploadUrl(String contentType) async {
+    final resp = await api.post<UploadUrlResponse>(
+      '/profile/avatar/upload-url',
+      body: {'content_type': contentType},
+      fromJsonT: (json) =>
+          ModelParser.objectFromJson(json, UploadUrlResponse.fromJson),
+    );
+
+    return resp.data;
+  }
+
+  Future<UploadUrlResponse> getCoverUploadUrl(String contentType) async {
+    final resp = await api.post<UploadUrlResponse>(
+      '/profile/cover/upload-url',
+      body: {'content_type': contentType},
+      fromJsonT: (json) =>
+          ModelParser.objectFromJson(json, UploadUrlResponse.fromJson),
     );
 
     return resp.data;
