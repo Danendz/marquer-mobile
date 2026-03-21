@@ -54,8 +54,7 @@ class MeScreen extends ConsumerWidget {
                   _SectionTile(
                     icon: Icons.science_outlined,
                     label: 'Laboratory',
-                    enabled: false,
-                    onTap: () {},
+                    onTap: () => context.push('/me/laboratory'),
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
